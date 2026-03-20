@@ -6,6 +6,7 @@ This prototype adds a `Perspective-Scale Routed` block to YOLO26 for tiny-object
 
 - `ultralytics/nn/modules/routed.py`: sparse routed expert and `SFRC2f`
 - `ultralytics/cfg/models/26/yolo26-sfr-visdrone.yaml`: routed YOLO26 variant
+- `ultralytics/cfg/models/26/yolo26n-sfr-visdrone.yaml`: fixed `n` variant without scale-warning
 - `examples/visdrone_sfr/train_psr_yolo26.py`: training entrypoint
 - `examples/visdrone_sfr/val_psr_yolo26.py`: validation entrypoint
 - `examples/visdrone_sfr/tiny_human_eval.py`: computes `tiny-human AP` for `pedestrian` and `people`
@@ -41,5 +42,5 @@ python3 examples/visdrone_sfr/tiny_human_eval.py \
 ## Notes
 
 - The scripts assume the standard Ultralytics `VisDrone.yaml` split: `train 6471 / val 548 / test 1610`.
-- The prototype keeps the standard three-scale detector and concentrates extra compute on the small-object pathway.
+- The current default is a lighter V2 design that trims deep-channel width and disables dense local mixing in routed head blocks.
 - Compare against `yolo26.yaml` and `yolo26-p2.yaml` at the same image size for a fair Pareto study.

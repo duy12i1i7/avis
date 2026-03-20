@@ -95,12 +95,13 @@ class SFRBottleneck(nn.Module):
         patch_size: int = 4,
         route_ratio: float = 0.25,
         min_regions: int = 1,
+        use_local: bool = True,
     ):
         """Initialize the routed bottleneck."""
         super().__init__()
         hidden = max(int(c2 * e), 1)
         self.cv1 = Conv(c1, hidden, 1, 1)
-        self.local = DWConv(hidden, hidden, 3, 1)
+        self.local = DWConv(hidden, hidden, 3, 1) if use_local else None
         self.expert = SparseSubpixelExpert(
             hidden, patch_size=patch_size, route_ratio=route_ratio, min_regions=min_regions, e=e
         )
@@ -110,7 +111,7 @@ class SFRBottleneck(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Apply the routed bottleneck with optional residual connection."""
         y = self.cv1(x)
-        y = self.local(y) + self.expert(y)
+        y = (self.local(y) if self.local is not None else y) + self.expert(y)
         y = self.cv2(y)
         return x + y if self.add else y
 
@@ -128,6 +129,7 @@ class SFRC2f(nn.Module):
         patch_size: int = 4,
         route_ratio: float = 0.25,
         min_regions: int = 1,
+        use_local: bool = True,
     ):
         """Initialize a C2f block with sparse routed bottlenecks."""
         super().__init__()
@@ -143,6 +145,7 @@ class SFRC2f(nn.Module):
                 patch_size=patch_size,
                 route_ratio=route_ratio,
                 min_regions=min_regions,
+                use_local=use_local,
             )
             for _ in range(n)
         )

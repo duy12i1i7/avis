@@ -16,7 +16,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train the routed YOLO26 VisDrone prototype.")
     parser.add_argument(
         "--model",
-        default=str(ROOT / "ultralytics" / "cfg" / "models" / "26" / "yolo26-sfr-visdrone.yaml"),
+        default=str(ROOT / "ultralytics" / "cfg" / "models" / "26" / "yolo26n-sfr-visdrone.yaml"),
         help="Path to the custom model YAML.",
     )
     parser.add_argument("--data", default="VisDrone.yaml", help="Dataset YAML. Defaults to Ultralytics VisDrone config.")
