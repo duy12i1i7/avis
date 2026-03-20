@@ -34,7 +34,19 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    model = YOLO(args.resume or args.model)
+    if args.resume:
+        model = YOLO(args.resume)
+        model.train(
+            resume=True,
+            imgsz=args.imgsz,
+            batch=args.batch,
+            device=args.device,
+            workers=args.workers,
+            cache=args.cache,
+        )
+        return
+
+    model = YOLO(args.model)
     model.train(
         data=args.data,
         epochs=args.epochs,
