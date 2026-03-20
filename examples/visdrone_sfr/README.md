@@ -9,6 +9,8 @@ This prototype adds a `Perspective-Scale Routed` block to YOLO26 for tiny-object
 - `examples/visdrone_sfr/train_psr_yolo26.py`: training entrypoint
 - `examples/visdrone_sfr/val_psr_yolo26.py`: validation entrypoint
 - `examples/visdrone_sfr/tiny_human_eval.py`: computes `tiny-human AP` for `pedestrian` and `people`
+- `examples/visdrone_sfr/run_kaggle_dual_t4.sh`: launcher for Kaggle 2xT4
+- `examples/visdrone_sfr/KAGGLE.md`: Kaggle notebook instructions
 
 ## Recommended training
 
