@@ -468,6 +468,117 @@ class v8DetectionLoss:
         return loss * batch_size, loss_detach
 
 
+class TinyObjectAwareDetectionLoss(v8DetectionLoss):
+    """Detection loss that upweights matched anchors for target tiny-object classes during training only."""
+
+    def __init__(self, model, tal_topk: int = 10, tal_topk2: int | None = None):
+        """Initialize the tiny-object-aware detection loss."""
+        super().__init__(model, tal_topk, tal_topk2)
+        tiny_cfg = getattr(model, "yaml", {}).get("tiny_obj", {}) or {}
+        self.tiny_enabled = bool(tiny_cfg.get("enabled", False))
+        self.tiny_cls_ids = [int(x) for x in tiny_cfg.get("cls_ids", [])]
+        self.tiny_area_thr = float(tiny_cfg.get("area", 32.0 * 32.0))
+        self.tiny_height_thr = float(tiny_cfg.get("height", 20.0))
+        self.tiny_box_gain = float(tiny_cfg.get("box_gain", 1.5))
+        self.tiny_cls_gain = float(tiny_cfg.get("cls_gain", 1.25))
+
+    def _matched_tiny_mask(
+        self,
+        gt_labels: torch.Tensor,
+        gt_bboxes: torch.Tensor,
+        target_gt_idx: torch.Tensor,
+        fg_mask: torch.Tensor,
+    ) -> torch.Tensor:
+        """Return matched foreground anchors whose assigned GT is a configured tiny object."""
+        matched_tiny = torch.zeros_like(fg_mask, dtype=torch.bool)
+        if not self.tiny_enabled or not self.tiny_cls_ids or not fg_mask.any():
+            return matched_tiny
+
+        widths = (gt_bboxes[..., 2] - gt_bboxes[..., 0]).clamp_min_(0)
+        heights = (gt_bboxes[..., 3] - gt_bboxes[..., 1]).clamp_min_(0)
+        areas = widths * heights
+
+        tiny_cls_mask = torch.zeros_like(gt_labels[..., 0], dtype=torch.bool)
+        for cls_id in self.tiny_cls_ids:
+            tiny_cls_mask |= gt_labels[..., 0].eq(cls_id)
+
+        tiny_gt_mask = tiny_cls_mask & (areas <= self.tiny_area_thr) & (heights <= self.tiny_height_thr) & areas.gt(0)
+        gathered = tiny_gt_mask.gather(1, target_gt_idx.clamp_min(0))
+        matched_tiny = fg_mask & gathered
+        return matched_tiny
+
+    def get_assigned_targets_and_loss(self, preds: dict[str, torch.Tensor], batch: dict[str, Any]) -> tuple:
+        """Calculate the weighted detection loss with extra emphasis on tiny target classes."""
+        loss = torch.zeros(3, device=self.device)  # box, cls, dfl
+        pred_distri, pred_scores = (
+            preds["boxes"].permute(0, 2, 1).contiguous(),
+            preds["scores"].permute(0, 2, 1).contiguous(),
+        )
+        anchor_points, stride_tensor = make_anchors(preds["feats"], self.stride, 0.5)
+
+        dtype = pred_scores.dtype
+        batch_size = pred_scores.shape[0]
+        imgsz = torch.tensor(preds["feats"][0].shape[2:], device=self.device, dtype=dtype) * self.stride[0]
+
+        targets = torch.cat((batch["batch_idx"].view(-1, 1), batch["cls"].view(-1, 1), batch["bboxes"]), 1)
+        targets = self.preprocess(targets.to(self.device), batch_size, scale_tensor=imgsz[[1, 0, 1, 0]])
+        gt_labels, gt_bboxes = targets.split((1, 4), 2)  # cls, xyxy
+        mask_gt = gt_bboxes.sum(2, keepdim=True).gt_(0.0)
+
+        pred_bboxes = self.bbox_decode(anchor_points, pred_distri)  # xyxy, (b, h*w, 4)
+
+        _, target_bboxes, target_scores, fg_mask, target_gt_idx = self.assigner(
+            pred_scores.detach().sigmoid(),
+            (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
+            anchor_points * stride_tensor,
+            gt_labels,
+            gt_bboxes,
+            mask_gt,
+        )
+
+        matched_tiny = self._matched_tiny_mask(gt_labels, gt_bboxes, target_gt_idx, fg_mask)
+        box_weight = torch.where(
+            matched_tiny.unsqueeze(-1),
+            torch.full_like(target_scores, self.tiny_box_gain),
+            torch.ones_like(target_scores),
+        )
+        cls_weight = torch.where(
+            matched_tiny.unsqueeze(-1),
+            torch.full_like(target_scores, self.tiny_cls_gain),
+            torch.ones_like(target_scores),
+        )
+
+        weighted_target_scores = target_scores * box_weight
+        weighted_target_scores_sum = max(weighted_target_scores.sum(), 1)
+
+        loss[1] = (self.bce(pred_scores, target_scores.to(dtype)) * cls_weight).sum() / max(
+            (target_scores * cls_weight).sum(),
+            1,
+        )
+
+        if fg_mask.sum():
+            loss[0], loss[2] = self.bbox_loss(
+                pred_distri,
+                pred_bboxes,
+                anchor_points,
+                target_bboxes / stride_tensor,
+                weighted_target_scores,
+                weighted_target_scores_sum,
+                fg_mask,
+                imgsz,
+                stride_tensor,
+            )
+
+        loss[0] *= self.hyp.box
+        loss[1] *= self.hyp.cls
+        loss[2] *= self.hyp.dfl
+        return (
+            (fg_mask, target_gt_idx, target_bboxes, anchor_points, stride_tensor),
+            loss,
+            loss.detach(),
+        )
+
+
 class v8SegmentationLoss(v8DetectionLoss):
     """Criterion class for computing training losses for YOLOv8 segmentation."""
 
@@ -1175,6 +1286,14 @@ class E2ELoss:
     def decay(self, x) -> float:
         """Calculate the decayed weight for one-to-many loss based on the current update step."""
         return max(1 - x / max(self.one2one.hyp.epochs - 1, 1), 0) * (self.o2m_copy - self.final_o2m) + self.final_o2m
+
+
+class TinyObjectAwareE2ELoss(E2ELoss):
+    """End-to-end detection loss that uses tiny-object-aware weighting for both one-to-many and one-to-one branches."""
+
+    def __init__(self, model):
+        """Initialize the tiny-object-aware end-to-end loss."""
+        super().__init__(model, loss_fn=TinyObjectAwareDetectionLoss)
 
 
 class TVPDetectLoss:

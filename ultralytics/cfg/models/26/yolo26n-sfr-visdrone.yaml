@@ -8,6 +8,13 @@ end2end: True
 reg_max: 1
 depth_multiple: 0.50
 width_multiple: 0.25
+tiny_obj:
+  enabled: True
+  cls_ids: [0, 1]
+  area: 1024
+  height: 20
+  box_gain: 1.5
+  cls_gain: 1.25
 
 backbone:
   - [-1, 1, Conv, [64, 3, 2]] # 0-P1/2
