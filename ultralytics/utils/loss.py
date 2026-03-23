@@ -1436,9 +1436,11 @@ class ShadowDistilledE2ELoss(TinyObjectAwareE2ELoss):
         ):
             density_loss = density_loss + F.mse_loss(s_den, t_den)
             feature_loss = feature_loss + F.smooth_l1_loss(s_eng * (1.0 + t_den), t_eng * (1.0 + t_den))
-            crowd_loss = crowd_loss + (
-                F.binary_cross_entropy(s_den.clamp(1e-4, 1 - 1e-4), c_tgt, reduction="none") * c_w
-            ).mean()
+            with autocast(enabled=False):
+                crowd_bce = F.binary_cross_entropy(
+                    s_den.float().clamp(1e-4, 1 - 1e-4), c_tgt.float(), reduction="none"
+                )
+                crowd_loss = crowd_loss + (crowd_bce * c_w.float()).mean()
 
         levels = max(len(student_density), 1)
         density_loss = density_loss / levels
