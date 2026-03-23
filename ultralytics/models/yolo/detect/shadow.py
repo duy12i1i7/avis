@@ -5,7 +5,7 @@ from pathlib import Path
 import torch
 
 from ultralytics.nn.tasks import load_checkpoint
-from ultralytics.utils import LOGGER
+from ultralytics.utils import LOCAL_RANK, LOGGER, RANK
 
 from .visdrone import VisDroneAttackTrainer
 
@@ -68,8 +68,15 @@ class ShadowDistillTrainer(VisDroneAttackTrainer):
     def _setup_train(self):
         """Build the student via the standard path, then attach the frozen teacher."""
         super()._setup_train()
+        LOGGER.info(
+            "DDP runtime "
+            f"rank={RANK} local_rank={LOCAL_RANK} world_size={self.world_size} "
+            f"device={self.device} batch_per_rank={self.batch_size // max(self.world_size, 1)}"
+        )
         if self.teacher_model is None:
             self.teacher_model = self._build_teacher()
+        if self.teacher_model is not None:
+            LOGGER.info(f"Teacher runtime rank={RANK} device={next(self.teacher_model.parameters()).device}")
 
     def preprocess_batch(self, batch: dict) -> dict:
         """Attach teacher predictions to the training batch for train-time-only distillation losses."""

@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import torch
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -59,6 +60,22 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    requested_devices = [x for x in str(args.device).replace("cuda:", "").split(",") if x]
+    if len(requested_devices) > 1 and torch.cuda.device_count() < len(requested_devices):
+        raise RuntimeError(
+            f"Requested {len(requested_devices)} CUDA devices via --device {args.device}, "
+            f"but only {torch.cuda.device_count()} are visible."
+        )
+    if torch.cuda.is_available():
+        visible_names = [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]
+        print(
+            "CUDA preflight:",
+            {
+                "requested": requested_devices or [str(args.device)],
+                "visible_count": torch.cuda.device_count(),
+                "visible_names": visible_names,
+            },
+        )
     if args.resume:
         model = YOLO(args.resume)
         model.train(
