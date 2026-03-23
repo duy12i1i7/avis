@@ -1310,6 +1310,171 @@ class TinyObjectAwareE2ELoss(E2ELoss):
         self.final_o2m = 0.1
 
 
+class ShadowDistilledE2ELoss(TinyObjectAwareE2ELoss):
+    """Tiny-object-aware E2E loss with train-time-only shadow-pyramid distillation."""
+
+    def __init__(self, model):
+        """Initialize distillation configuration for VisDrone tiny-human training."""
+        super().__init__(model)
+        shadow_cfg = getattr(model, "yaml", {}).get("shadow_distill", {}) or {}
+        self.shadow_enabled = bool(shadow_cfg.get("enabled", False))
+        self.shadow_cls_ids = [int(x) for x in shadow_cfg.get("cls_ids", [0, 1])]
+        self.shadow_area_thr = float(shadow_cfg.get("area", 32.0 * 32.0))
+        self.shadow_height_thr = float(shadow_cfg.get("height", 20.0))
+        self.shadow_density_gain = float(shadow_cfg.get("density_gain", 0.75))
+        self.shadow_feature_gain = float(shadow_cfg.get("feature_gain", 0.25))
+        self.shadow_crowd_gain = float(shadow_cfg.get("crowd_gain", 0.35))
+        self.shadow_crowd_radius = int(shadow_cfg.get("crowd_radius", 1))
+
+    def _parse_preds(self, preds: Any) -> dict[str, torch.Tensor]:
+        """Convert model outputs to the parsed prediction dictionary."""
+        return self.one2many.parse_output(preds)
+
+    def _split_level_maps(self, scores: torch.Tensor, feats: list[torch.Tensor]) -> list[torch.Tensor]:
+        """Split concatenated class scores back into per-level maps."""
+        maps, start = [], 0
+        for feat in feats:
+            _, _, h, w = feat.shape
+            end = start + h * w
+            maps.append(scores[..., start:end].view(scores.shape[0], scores.shape[1], h, w))
+            start = end
+        return maps
+
+    def _tiny_density(self, branch: dict[str, torch.Tensor]) -> list[torch.Tensor]:
+        """Aggregate tiny-human class responses into a single density map per feature level."""
+        level_scores = self._split_level_maps(branch["scores"], branch["feats"])
+        densities = []
+        for score in level_scores:
+            tiny_channels = [score[:, cls_id].sigmoid() for cls_id in self.shadow_cls_ids if cls_id < score.shape[1]]
+            if tiny_channels:
+                tiny = torch.stack(tiny_channels, 1)
+                densities.append(tiny.amax(1, keepdim=True))
+            else:
+                densities.append(score.new_zeros(score.shape[0], 1, *score.shape[-2:]))
+        return densities
+
+    def _energy_maps(self, feats: list[torch.Tensor]) -> list[torch.Tensor]:
+        """Compute channel-collapsed feature energy maps for parameter-free feature distillation."""
+        maps = []
+        for feat in feats:
+            energy = feat.pow(2).mean(1, keepdim=True)
+            energy = energy / energy.flatten(2).amax(-1, keepdim=True).view(feat.shape[0], 1, 1, 1).clamp_min_(1e-6)
+            maps.append(energy)
+        return maps
+
+    def _align_teacher_maps(self, teacher_maps: list[torch.Tensor], student_shapes: list[tuple[int, int]]) -> list[torch.Tensor]:
+        """Align teacher maps to the student pyramid. If teacher has P2, merge it into the student P3 target."""
+        if len(teacher_maps) == len(student_shapes) + 1:
+            merged = [torch.maximum(
+                F.interpolate(teacher_maps[0], size=student_shapes[0], mode="bilinear", align_corners=False),
+                F.interpolate(teacher_maps[1], size=student_shapes[0], mode="bilinear", align_corners=False),
+            )]
+            merged.extend(
+                F.interpolate(m, size=shape, mode="bilinear", align_corners=False)
+                for m, shape in zip(teacher_maps[2:], student_shapes[1:])
+            )
+            return merged
+        return [
+            F.interpolate(m, size=shape, mode="bilinear", align_corners=False)
+            for m, shape in zip(teacher_maps[-len(student_shapes):], student_shapes)
+        ]
+
+    def _tiny_gt_mask(self, batch: dict[str, torch.Tensor]) -> torch.Tensor:
+        """Return a mask for GT boxes that match the configured tiny-human regime."""
+        cls = batch["cls"].view(-1)
+        boxes = batch["bboxes"].view(-1, 4)
+        img_h, img_w = batch["img"].shape[-2:]
+        area_thr = self.shadow_area_thr / max(float(img_h * img_w), 1.0)
+        height_thr = self.shadow_height_thr / max(float(img_h), 1.0)
+        cls_mask = torch.zeros_like(cls, dtype=torch.bool)
+        for cls_id in self.shadow_cls_ids:
+            cls_mask |= cls.eq(float(cls_id))
+        area = boxes[:, 2] * boxes[:, 3]
+        return cls_mask & (area <= area_thr) & (boxes[:, 3] <= height_thr) & area.gt(0)
+
+    def _crowd_targets(
+        self, batch: dict[str, torch.Tensor], student_maps: list[torch.Tensor]
+    ) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
+        """Create crowd-aware center heatmaps on the student pyramid."""
+        bs = student_maps[0].shape[0]
+        device = student_maps[0].device
+        target_maps = [torch.zeros((bs, 1, *m.shape[-2:]), device=device) for m in student_maps]
+        weight_maps = [torch.ones_like(t) for t in target_maps]
+        tiny_mask = self._tiny_gt_mask(batch)
+        if not tiny_mask.any():
+            return target_maps, weight_maps
+
+        batch_idx = batch["batch_idx"].view(-1)[tiny_mask].long()
+        boxes = batch["bboxes"].view(-1, 4)[tiny_mask]
+        radius = self.shadow_crowd_radius
+        for bi, box in zip(batch_idx.tolist(), boxes):
+            cx, cy = float(box[0]), float(box[1])
+            for target, weight in zip(target_maps, weight_maps):
+                h, w = target.shape[-2:]
+                x = min(max(int(cx * w), 0), w - 1)
+                y = min(max(int(cy * h), 0), h - 1)
+                target[bi, 0, y, x] = 1.0
+                y0, y1 = max(y - radius, 0), min(y + radius + 1, h)
+                x0, x1 = max(x - radius, 0), min(x + radius + 1, w)
+                weight[bi, 0, y0:y1, x0:x1] += 1.0
+        return target_maps, weight_maps
+
+    def _shadow_loss(self, student_branch: dict[str, torch.Tensor], teacher_branch: dict[str, torch.Tensor], batch: dict[str, torch.Tensor]) -> torch.Tensor:
+        """Compute density, feature, and crowd-aware distillation losses."""
+        student_shapes = [tuple(feat.shape[-2:]) for feat in student_branch["feats"]]
+        student_density = self._tiny_density(student_branch)
+        teacher_density = self._align_teacher_maps(self._tiny_density(teacher_branch), student_shapes)
+        student_energy = self._energy_maps(student_branch["feats"])
+        teacher_energy = self._align_teacher_maps(self._energy_maps(teacher_branch["feats"]), student_shapes)
+        crowd_targets, crowd_weights = self._crowd_targets(batch, student_density)
+
+        density_loss = student_density[0].new_zeros(())
+        feature_loss = student_density[0].new_zeros(())
+        crowd_loss = student_density[0].new_zeros(())
+        for s_den, t_den, s_eng, t_eng, c_tgt, c_w in zip(
+            student_density, teacher_density, student_energy, teacher_energy, crowd_targets, crowd_weights
+        ):
+            density_loss = density_loss + F.mse_loss(s_den, t_den)
+            feature_loss = feature_loss + F.smooth_l1_loss(s_eng * (1.0 + t_den), t_eng * (1.0 + t_den))
+            crowd_loss = crowd_loss + (
+                F.binary_cross_entropy(s_den.clamp(1e-4, 1 - 1e-4), c_tgt, reduction="none") * c_w
+            ).mean()
+
+        levels = max(len(student_density), 1)
+        density_loss = density_loss / levels
+        feature_loss = feature_loss / levels
+        crowd_loss = crowd_loss / levels
+        return (
+            density_loss * self.shadow_density_gain
+            + feature_loss * self.shadow_feature_gain
+            + crowd_loss * self.shadow_crowd_gain
+        )
+
+    def __call__(self, preds: Any, batch: dict[str, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
+        """Add train-time-only shadow distillation to the base tiny-object-aware loss."""
+        loss, loss_items = super().__call__(preds, batch)
+        if not self.shadow_enabled:
+            return loss, loss_items
+
+        teacher_preds = batch.get("_teacher_preds", None)
+        if teacher_preds is None:
+            return loss, loss_items
+
+        student_preds = self._parse_preds(preds)
+        if isinstance(teacher_preds, tuple):
+            teacher_preds = teacher_preds[1]
+        teacher_preds = self._parse_preds(teacher_preds)
+        student_branch = student_preds["one2many"] if "one2many" in student_preds else student_preds
+        teacher_branch = teacher_preds["one2many"] if "one2many" in teacher_preds else teacher_preds
+
+        shadow = self._shadow_loss(student_branch, teacher_branch, batch)
+        batch_size = student_branch["scores"].shape[0]
+        loss = loss + shadow * batch_size
+        loss_items = loss_items.clone()
+        loss_items[1] += shadow.detach()
+        return loss, loss_items
+
+
 class TVPDetectLoss:
     """Criterion class for computing training losses for text-visual prompt detection."""
 

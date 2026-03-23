@@ -1,13 +1,15 @@
 # YOLO26 VisDrone Attack Build
 
-This directory now contains three VisDrone-focused paths:
+This directory now contains four VisDrone-focused paths:
 
 - the earlier routed `SFR` prototype for ablations
 - the `P2 + tiny-object-aware training` attack recipe for upper-bound recall
 - the current default `RSPB` recipe that injects selective P2 detail into P3 without a full P2 detection head
+- the new `SPD` recipe that adds a frozen dense teacher during training and keeps the lightweight student at inference
 
 ## Files
 
+- `ultralytics/cfg/models/26/yolo26n-spd-visdrone.yaml`: shadow-pyramid distilled student, the current default candidate
 - `ultralytics/cfg/models/26/yolo26n-rspb-visdrone.yaml`: route-selective P2 bridge, the current default candidate
 - `ultralytics/cfg/models/26/yolo26n-p2-visdrone.yaml`: fixed `n` model for strong tiny-human recall
 - `ultralytics/cfg/models/26/yolo26s-p2-visdrone.yaml`: heavier `s` variant for accuracy attacks
@@ -62,7 +64,8 @@ python3 examples/visdrone_sfr/tiny_human_eval.py \
 ## Notes
 
 - The scripts assume the standard Ultralytics `VisDrone.yaml` split: `train 6471 / val 548 / test 1610`.
-- The current default attack recipe is `YOLO26n-RSPB` with transfer learning from `yolo26n.pt`.
+- The current default attack recipe is `YOLO26n-SPD` with transfer learning from `yolo26n.pt`.
+- `SPD` uses a frozen `YOLO26n-P2` teacher only during training and keeps the student inference graph lightweight.
 - `RSPB` keeps only P3-P5 detection outputs and uses a selective P2 bridge for small-object detail recovery.
 - `VisDroneAttackTrainer` only changes training-time behavior; inference graph still comes from the YAML model.
 - Compare against `yolo26.yaml` and `yolo26-p2.yaml` at the same image size for a fair study.

@@ -56,7 +56,7 @@ If internet is ON, `VisDrone.yaml` can auto-download and convert the dataset.
 Notes:
 
 - `--device 0,1` is already baked into the launcher.
-- The default launcher now uses `yolo26n-rspb-visdrone.yaml` plus pretrained transfer from `yolo26n.pt`.
+- The default launcher now uses `yolo26n-spd-visdrone.yaml` plus pretrained transfer from `yolo26n.pt`.
 - `--batch 16` is a safe first try for `2xT4`; if OOM, try `12` or `8`.
 - If throughput is unstable, reduce `--workers` from `4` to `2`.
 

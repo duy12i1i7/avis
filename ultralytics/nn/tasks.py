@@ -80,6 +80,7 @@ from ultralytics.utils.checks import check_requirements, check_suffix, check_yam
 from ultralytics.utils.loss import (
     E2ELoss,
     PoseLoss26,
+    ShadowDistilledE2ELoss,
     TinyObjectAwareE2ELoss,
     v8ClassificationLoss,
     v8DetectionLoss,
@@ -514,6 +515,9 @@ class DetectionModel(BaseModel):
 
     def init_criterion(self):
         """Initialize the loss criterion for the DetectionModel."""
+        shadow_cfg = self.yaml.get("shadow_distill", {}) or {}
+        if shadow_cfg.get("enabled", False) and getattr(self, "end2end", False):
+            return ShadowDistilledE2ELoss(self)
         tiny_cfg = self.yaml.get("tiny_obj", {}) or {}
         if tiny_cfg.get("enabled", False) and getattr(self, "end2end", False):
             return TinyObjectAwareE2ELoss(self)

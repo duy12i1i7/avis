@@ -10,7 +10,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ultralytics import YOLO  # noqa: E402
-from ultralytics.models.yolo.detect import VisDroneAttackTrainer  # noqa: E402
+from ultralytics.models.yolo.detect import ShadowDistillTrainer  # noqa: E402
 
 
 def infer_pretrained_weights(model_path: str) -> str:
@@ -26,7 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train the VisDrone YOLO26 attack recipe.")
     parser.add_argument(
         "--model",
-        default=str(ROOT / "ultralytics" / "cfg" / "models" / "26" / "yolo26n-rspb-visdrone.yaml"),
+        default=str(ROOT / "ultralytics" / "cfg" / "models" / "26" / "yolo26n-spd-visdrone.yaml"),
         help="Path to the custom model YAML.",
     )
     parser.add_argument(
@@ -41,12 +41,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="0")
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--project", default=str(ROOT / "runs" / "visdrone"))
-    parser.add_argument("--name", default="yolo26_rspb_visdrone_attack")
+    parser.add_argument("--name", default="yolo26_spd_visdrone_attack")
     parser.add_argument("--patience", type=int, default=150)
     parser.add_argument("--optimizer", default="auto")
     parser.add_argument("--close-mosaic", type=int, default=20)
     parser.add_argument("--multi-scale", type=float, default=0.0)
     parser.add_argument("--mixup", type=float, default=0.0)
+    parser.add_argument("--teacher-model", default=None, help="Optional teacher model YAML/PT for shadow distillation.")
+    parser.add_argument("--teacher-weights", default=None, help="Optional teacher weights checkpoint.")
     parser.add_argument("--cache", action="store_true", help="Cache images in RAM for faster training.")
     parser.add_argument("--resume", default=None, help="Resume from a previous checkpoint if provided.")
     parser.add_argument("--cos-lr", dest="cos_lr", action="store_true", help="Enable cosine LR schedule.")
@@ -60,7 +62,7 @@ def main() -> None:
     if args.resume:
         model = YOLO(args.resume)
         model.train(
-            trainer=VisDroneAttackTrainer,
+            trainer=ShadowDistillTrainer,
             resume=True,
             imgsz=args.imgsz,
             batch=args.batch,
@@ -68,6 +70,8 @@ def main() -> None:
             workers=args.workers,
             cache=args.cache,
             patience=args.patience,
+            teacher_model=args.teacher_model,
+            teacher_weights=args.teacher_weights,
         )
         return
 
@@ -81,7 +85,7 @@ def main() -> None:
         pretrained = args.weights
 
     model.train(
-        trainer=VisDroneAttackTrainer,
+        trainer=ShadowDistillTrainer,
         data=args.data,
         epochs=args.epochs,
         imgsz=args.imgsz,
@@ -98,6 +102,8 @@ def main() -> None:
         close_mosaic=args.close_mosaic,
         multi_scale=args.multi_scale,
         mixup=args.mixup,
+        teacher_model=args.teacher_model,
+        teacher_weights=args.teacher_weights,
         degrees=0.0,
         copy_paste=0.0,
         save_json=False,
