@@ -1358,7 +1358,8 @@ class ShadowDistilledE2ELoss(TinyObjectAwareE2ELoss):
         maps = []
         for feat in feats:
             energy = feat.pow(2).mean(1, keepdim=True)
-            energy = energy / energy.flatten(2).amax(-1, keepdim=True).view(feat.shape[0], 1, 1, 1).clamp_min_(1e-6)
+            denom = energy.flatten(2).amax(-1, keepdim=True).view(feat.shape[0], 1, 1, 1).clamp_min(1e-6)
+            energy = energy / denom
             maps.append(energy)
         return maps
 
