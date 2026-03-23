@@ -19,6 +19,7 @@ MODEL=""
 WEIGHTS="auto"
 TEACHER_MODEL=""
 TEACHER_WEIGHTS=""
+RESUME=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -26,6 +27,7 @@ while [[ $# -gt 0 ]]; do
     --weights) WEIGHTS="$2"; shift 2 ;;
     --teacher-model) TEACHER_MODEL="$2"; shift 2 ;;
     --teacher-weights) TEACHER_WEIGHTS="$2"; shift 2 ;;
+    --resume) RESUME="$2"; shift 2 ;;
     --data) DATA="$2"; shift 2 ;;
     --imgsz) IMGSZ="$2"; shift 2 ;;
     --batch) BATCH="$2"; shift 2 ;;
@@ -61,6 +63,10 @@ fi
 
 if [[ -n "${TEACHER_WEIGHTS}" ]]; then
   CMD+=(--teacher-weights "${TEACHER_WEIGHTS}")
+fi
+
+if [[ -n "${RESUME}" ]]; then
+  CMD+=(--resume "${RESUME}")
 fi
 
 "${CMD[@]}"
