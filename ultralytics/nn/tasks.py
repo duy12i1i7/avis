@@ -64,6 +64,7 @@ from ultralytics.nn.modules import (
     ResNetLayer,
     RTDETRDecoder,
     SCDown,
+    ScaleSelectiveFusion,
     SFRC2f,
     Segment,
     Segment26,
@@ -1611,6 +1612,7 @@ def parse_model(d, ch, verbose=True):
             RepC3,
             PSA,
             SCDown,
+            ScaleSelectiveFusion,
             SFRC2f,
             C2fCIB,
             A2C2f,
@@ -1685,6 +1687,12 @@ def parse_model(d, ch, verbose=True):
             args = [ch[f]]
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
+        elif m is ScaleSelectiveFusion:
+            c1 = [ch[x] for x in f]
+            c2 = args[0]
+            if c2 != nc:
+                c2 = make_divisible(min(c2, max_channels) * width, 8)
+            args = [c1[0], c1[1], c2, *args[1:]]
         elif m in frozenset(
             {
                 Detect,

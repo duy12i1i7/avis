@@ -11,7 +11,7 @@ import torch.nn.functional as F
 
 from .conv import Conv, DWConv
 
-__all__ = ("SFRBottleneck", "SFRC2f", "SparseSubpixelExpert")
+__all__ = ("ScaleSelectiveFusion", "SFRBottleneck", "SFRC2f", "SparseSubpixelExpert")
 
 
 class SparseSubpixelExpert(nn.Module):
@@ -81,6 +81,52 @@ class SparseSubpixelExpert(nn.Module):
         delta[batch_idx, topk_idx] = refined
         delta = delta.view(b, gh, gw, c, p, p).permute(0, 3, 1, 4, 2, 5).reshape(b, c, hp, wp)
         return delta[..., :h, :w]
+
+
+class ScaleSelectiveFusion(nn.Module):
+    """Inject P2 detail into the P3 branch without introducing a full P2 detection head."""
+
+    def __init__(
+        self,
+        c_p2: int,
+        c_p3: int,
+        c2: int,
+        e: float = 0.5,
+        patch_size: int = 4,
+        route_ratio: float = 0.125,
+        min_regions: int = 1,
+    ):
+        """Initialize the selective P2-to-P3 fusion bridge."""
+        super().__init__()
+        hidden = max(int(c2 * e), 16)
+        self.p2_proj = Conv(c_p2 * 4, hidden, 1, 1)
+        self.p3_proj = Conv(c_p3, hidden, 1, 1)
+        self.router = nn.Sequential(
+            nn.Conv2d(hidden * 2, hidden, 1, bias=False),
+            nn.BatchNorm2d(hidden),
+            nn.SiLU(),
+            nn.Conv2d(hidden, 1, 1),
+        )
+        self.detail = SparseSubpixelExpert(
+            hidden, patch_size=patch_size, route_ratio=route_ratio, min_regions=min_regions, e=1.0
+        )
+        self.out = Conv(hidden, c2, 1, 1)
+        self.last_route_density = 1.0
+
+    def forward(self, x: list[torch.Tensor] | tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        """Fuse high-resolution detail from P2 into the current P3 tensor."""
+        p2, p3 = x
+        target_hw = (p3.shape[-2] * 2, p3.shape[-1] * 2)
+        if p2.shape[-2:] != target_hw:
+            p2 = F.interpolate(p2, size=target_hw, mode="bilinear", align_corners=False)
+
+        p2 = F.pixel_unshuffle(p2, 2)
+        p2 = self.p2_proj(p2)
+        p3 = self.p3_proj(p3)
+        gate = self.router(torch.cat((p2, p3), 1)).sigmoid()
+        detail = self.detail(p2)
+        self.last_route_density = self.detail.last_route_density
+        return self.out(p3 + gate * p2 + detail)
 
 
 class SFRBottleneck(nn.Module):

@@ -76,7 +76,7 @@ from .conv import (
     RepConv,
     SpatialAttention,
 )
-from .routed import SFRBottleneck, SFRC2f, SparseSubpixelExpert
+from .routed import ScaleSelectiveFusion, SFRBottleneck, SFRC2f, SparseSubpixelExpert
 from .head import (
     OBB,
     OBB26,
@@ -176,6 +176,7 @@ __all__ = (
     "RepVGGDW",
     "ResNetLayer",
     "SCDown",
+    "ScaleSelectiveFusion",
     "SFRBottleneck",
     "SFRC2f",
     "Segment",

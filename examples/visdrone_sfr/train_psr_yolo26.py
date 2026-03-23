@@ -26,7 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train the VisDrone YOLO26 attack recipe.")
     parser.add_argument(
         "--model",
-        default=str(ROOT / "ultralytics" / "cfg" / "models" / "26" / "yolo26n-p2-visdrone.yaml"),
+        default=str(ROOT / "ultralytics" / "cfg" / "models" / "26" / "yolo26n-rspb-visdrone.yaml"),
         help="Path to the custom model YAML.",
     )
     parser.add_argument(
@@ -41,7 +41,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="0")
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--project", default=str(ROOT / "runs" / "visdrone"))
-    parser.add_argument("--name", default="yolo26_p2_visdrone_attack")
+    parser.add_argument("--name", default="yolo26_rspb_visdrone_attack")
     parser.add_argument("--patience", type=int, default=150)
     parser.add_argument("--optimizer", default="auto")
     parser.add_argument("--close-mosaic", type=int, default=20)

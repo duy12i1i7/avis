@@ -14,7 +14,7 @@ EPOCHS="500"
 WORKERS="4"
 DEVICE="0,1"
 PROJECT="/kaggle/working/runs/visdrone"
-NAME="yolo26_p2_visdrone_attack_kaggle"
+NAME="yolo26_rspb_visdrone_attack_kaggle"
 MODEL=""
 WEIGHTS="auto"
 
