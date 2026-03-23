@@ -481,6 +481,8 @@ class TinyObjectAwareDetectionLoss(v8DetectionLoss):
         self.tiny_height_thr = float(tiny_cfg.get("height", 20.0))
         self.tiny_box_gain = float(tiny_cfg.get("box_gain", 1.5))
         self.tiny_cls_gain = float(tiny_cfg.get("cls_gain", 1.25))
+        self.assigner.alpha = float(tiny_cfg.get("assigner_alpha", self.assigner.alpha))
+        self.assigner.beta = float(tiny_cfg.get("assigner_beta", self.assigner.beta))
 
     def _matched_tiny_mask(
         self,
@@ -1293,7 +1295,19 @@ class TinyObjectAwareE2ELoss(E2ELoss):
 
     def __init__(self, model):
         """Initialize the tiny-object-aware end-to-end loss."""
-        super().__init__(model, loss_fn=TinyObjectAwareDetectionLoss)
+        tiny_cfg = getattr(model, "yaml", {}).get("tiny_obj", {}) or {}
+        self.one2many = TinyObjectAwareDetectionLoss(model, tal_topk=int(tiny_cfg.get("one2many_topk", 10)))
+        self.one2one = TinyObjectAwareDetectionLoss(
+            model,
+            tal_topk=int(tiny_cfg.get("one2one_topk", 7)),
+            tal_topk2=int(tiny_cfg.get("one2one_topk2", 1)),
+        )
+        self.updates = 0
+        self.total = 1.0
+        self.o2m = 0.8
+        self.o2o = self.total - self.o2m
+        self.o2m_copy = self.o2m
+        self.final_o2m = 0.1
 
 
 class TVPDetectLoss:

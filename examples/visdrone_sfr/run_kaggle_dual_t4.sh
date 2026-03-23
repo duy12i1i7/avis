@@ -10,14 +10,18 @@ set -euo pipefail
 DATA="VisDrone.yaml"
 IMGSZ="960"
 BATCH="16"
-EPOCHS="300"
+EPOCHS="500"
 WORKERS="4"
 DEVICE="0,1"
 PROJECT="/kaggle/working/runs/visdrone"
-NAME="yolo26_sfr_visdrone_kaggle"
+NAME="yolo26_p2_visdrone_attack_kaggle"
+MODEL=""
+WEIGHTS="auto"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --model) MODEL="$2"; shift 2 ;;
+    --weights) WEIGHTS="$2"; shift 2 ;;
     --data) DATA="$2"; shift 2 ;;
     --imgsz) IMGSZ="$2"; shift 2 ;;
     --batch) BATCH="$2"; shift 2 ;;
@@ -30,12 +34,21 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-python3 examples/visdrone_sfr/train_psr_yolo26.py \
-  --data "${DATA}" \
-  --imgsz "${IMGSZ}" \
-  --batch "${BATCH}" \
-  --epochs "${EPOCHS}" \
-  --workers "${WORKERS}" \
-  --device "${DEVICE}" \
-  --project "${PROJECT}" \
+CMD=(
+  python3 examples/visdrone_sfr/train_psr_yolo26.py
+  --data "${DATA}"
+  --imgsz "${IMGSZ}"
+  --batch "${BATCH}"
+  --epochs "${EPOCHS}"
+  --workers "${WORKERS}"
+  --device "${DEVICE}"
+  --project "${PROJECT}"
   --name "${NAME}"
+  --weights "${WEIGHTS}"
+)
+
+if [[ -n "${MODEL}" ]]; then
+  CMD+=(--model "${MODEL}")
+fi
+
+"${CMD[@]}"

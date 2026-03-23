@@ -50,14 +50,26 @@ If internet is ON, `VisDrone.yaml` can auto-download and convert the dataset.
   --data VisDrone.yaml \
   --imgsz 960 \
   --batch 16 \
-  --epochs 300
+  --epochs 500
 ```
 
 Notes:
 
 - `--device 0,1` is already baked into the launcher.
+- The default launcher now uses `yolo26n-p2-visdrone.yaml` plus pretrained transfer from `yolo26n.pt`.
 - `--batch 16` is a safe first try for `2xT4`; if OOM, try `12` or `8`.
 - If throughput is unstable, reduce `--workers` from `4` to `2`.
+
+For a heavier accuracy-first run:
+
+```bash
+!bash examples/visdrone_sfr/run_kaggle_dual_t4.sh \
+  --model ultralytics/cfg/models/26/yolo26s-p2-visdrone.yaml \
+  --data VisDrone.yaml \
+  --imgsz 960 \
+  --batch 8 \
+  --epochs 500
+```
 
 ## 5. If internet is OFF and you attach VisDrone as Kaggle Input
 
@@ -93,7 +105,7 @@ Then train with:
   --data /kaggle/working/VisDrone-kaggle.yaml \
   --imgsz 960 \
   --batch 16 \
-  --epochs 300
+  --epochs 500
 ```
 
 ## 6. Validate and tiny-human AP

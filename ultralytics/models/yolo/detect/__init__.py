@@ -3,5 +3,6 @@
 from .predict import DetectionPredictor
 from .train import DetectionTrainer
 from .val import DetectionValidator
+from .visdrone import VisDroneAttackTrainer
 
-__all__ = "DetectionPredictor", "DetectionTrainer", "DetectionValidator"
+__all__ = "DetectionPredictor", "DetectionTrainer", "DetectionValidator", "VisDroneAttackTrainer"
