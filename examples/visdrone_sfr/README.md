@@ -6,6 +6,7 @@ This directory now contains four VisDrone-focused paths:
 - the `P2 + tiny-object-aware training` attack recipe for upper-bound recall
 - the current default `RSPB` recipe that injects selective P2 detail into P3 without a full P2 detection head
 - the new `SPD` recipe that adds a frozen dense teacher during training and keeps the lightweight student at inference
+- the new `SFR host-module bench` path that tests `SparseSubpixelExpert` under `C2f`, `C3k`, and `C3k2` hosts
 
 ## Files
 
@@ -14,14 +15,25 @@ This directory now contains four VisDrone-focused paths:
 - `ultralytics/cfg/models/26/yolo26n-p2-visdrone.yaml`: fixed `n` model for strong tiny-human recall
 - `ultralytics/cfg/models/26/yolo26s-p2-visdrone.yaml`: heavier `s` variant for accuracy attacks
 - `ultralytics/nn/modules/routed.py`: sparse routed expert and `SFRC2f`
+- `ultralytics/nn/modules/routed.py`: sparse routed expert plus `SFRC2f`, `SFRC3k`, and `SFRC3k2`
 - `ultralytics/cfg/models/26/yolo26-sfr-visdrone.yaml`: routed YOLO26 variant
 - `ultralytics/cfg/models/26/yolo26n-sfr-visdrone.yaml`: fixed `n` variant without scale-warning
+- `ultralytics/cfg/models/26/yolo26n-sfrc2f-visdrone.yaml`: explicit `SFRC2f` host benchmark
+- `ultralytics/cfg/models/26/yolo26n-sfrc3k-visdrone.yaml`: explicit `SFRC3k` host benchmark
+- `ultralytics/cfg/models/26/yolo26n-sfrc3k2-visdrone.yaml`: explicit `SFRC3k2` host benchmark
+- `ultralytics/cfg/models/11/yolo11n-sfrc2f-visdrone.yaml`: cross-YOLO `SFRC2f` transfer benchmark
+- `ultralytics/cfg/models/v8/yolov8n-sfrc2f-visdrone.yaml`: `YOLOv8n` transfer benchmark
+- `ultralytics/cfg/models/v10/yolov10n-sfrc2f-visdrone.yaml`: `YOLOv10n` transfer benchmark
+- `ultralytics/cfg/models/12/yolo12n-sfrc2f-visdrone.yaml`: `YOLO12n` compatibility-limited transfer benchmark
 - `ultralytics/models/yolo/detect/visdrone.py`: VisDrone trainer with tiny-image oversampling and batch upscale bias
 - `examples/visdrone_sfr/train_psr_yolo26.py`: training entrypoint for the attack recipe
+- `examples/visdrone_sfr/train_sfr_module_bench.py`: training entrypoint for host-module transfer studies
+- `examples/visdrone_sfr/run_sfr_full_matrix.sh`: one-shot launcher for the full SFR train/eval matrix
 - `examples/visdrone_sfr/val_psr_yolo26.py`: validation entrypoint
 - `examples/visdrone_sfr/tiny_human_eval.py`: computes `tiny-human AP` for `pedestrian` and `people`
 - `examples/visdrone_sfr/run_kaggle_dual_t4.sh`: launcher for Kaggle 2xT4
 - `examples/visdrone_sfr/KAGGLE.md`: Kaggle notebook instructions
+- `docs/visdrone_sfr_experiment_protocol.md`: full SFR host-module experiment protocol
 
 ## Recommended training
 

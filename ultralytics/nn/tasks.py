@@ -66,6 +66,8 @@ from ultralytics.nn.modules import (
     SCDown,
     ScaleSelectiveFusion,
     SFRC2f,
+    SFRC3k,
+    SFRC3k2,
     Segment,
     Segment26,
     TorchVision,
@@ -1618,6 +1620,8 @@ def parse_model(d, ch, verbose=True):
             SCDown,
             ScaleSelectiveFusion,
             SFRC2f,
+            SFRC3k,
+            SFRC3k2,
             C2fCIB,
             A2C2f,
         }
@@ -1640,6 +1644,8 @@ def parse_model(d, ch, verbose=True):
             C2PSA,
             A2C2f,
             SFRC2f,
+            SFRC3k,
+            SFRC3k2,
         }
     )
     for i, (f, n, m, args) in enumerate(d["backbone"] + d["head"]):  # from, number, module, args

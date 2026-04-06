@@ -1,0 +1,59 @@
+# Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
+
+# Fixed-size YOLO26n ablation for SparseSubpixelExpert hosted by C3k2-style shells.
+
+nc: 80
+end2end: True
+reg_max: 1
+depth_multiple: 0.50
+width_multiple: 0.25
+
+tiny_obj:
+  enabled: True
+  cls_ids: [0, 1]
+  area: 1024
+  height: 20
+  box_gain: 1.5
+  cls_gain: 1.25
+
+visdrone_attack:
+  tiny_cls_ids: [0, 1]
+  tiny_area: 1024
+  tiny_height: 20
+  tiny_repeat: 1
+  tiny_repeat_cap: 2
+  tiny_scale_prob: 0.5
+  tiny_scale_gain: 1.08
+  max_scale_gain: 1.12
+
+backbone:
+  - [-1, 1, Conv, [64, 3, 2]] # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 1-P2/4
+  - [-1, 1, SFRC3k2, [224, False, 0.5, 8, 0.25, 1, True, 3]]
+  - [-1, 1, Conv, [224, 3, 2]] # 3-P3/8
+  - [-1, 1, SFRC3k2, [448, False, 0.5, 4, 0.25, 1, True, 3]]
+  - [-1, 1, Conv, [448, 3, 2]] # 5-P4/16
+  - [-1, 1, C3k2, [448, True]]
+  - [-1, 1, Conv, [896, 3, 2]] # 7-P5/32
+  - [-1, 1, C3k2, [896, True]]
+  - [-1, 1, SPPF, [896, 5, 3, True]]
+  - [-1, 2, C2PSA, [896]]
+
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 6], 1, Concat, [1]]
+  - [-1, 1, SFRC3k2, [448, True, 0.375, 4, 0.20, 1, False, 3]] # 13
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 4], 1, Concat, [1]]
+  - [-1, 1, SFRC3k2, [224, True, 0.375, 4, 0.375, 1, False, 3]] # 16 (P3/8-small)
+
+  - [-1, 1, Conv, [224, 3, 2]]
+  - [[-1, 13], 1, Concat, [1]]
+  - [-1, 1, SFRC3k2, [384, True, 0.375, 4, 0.20, 1, False, 3]] # 19 (P4/16-medium)
+
+  - [-1, 1, Conv, [384, 3, 2]]
+  - [[-1, 10], 1, Concat, [1]]
+  - [-1, 1, C3k2, [768, True, 0.5, True]] # 22 (P5/32-large)
+
+  - [[16, 19, 22], 1, Detect, [nc]]

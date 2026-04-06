@@ -9,9 +9,18 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .block import C2f, C3, Bottleneck, PSABlock
 from .conv import Conv, DWConv
 
-__all__ = ("ScaleSelectiveFusion", "SFRBottleneck", "SFRC2f", "SparseSubpixelExpert")
+__all__ = (
+    "ScaleSelectiveFusion",
+    "SFRBottleneck",
+    "SFRKBlock",
+    "SFRC2f",
+    "SFRC3k",
+    "SFRC3k2",
+    "SparseSubpixelExpert",
+)
 
 
 class SparseSubpixelExpert(nn.Module):
@@ -162,6 +171,41 @@ class SFRBottleneck(nn.Module):
         return x + y if self.add else y
 
 
+class SFRKBlock(nn.Module):
+    """Kernel-aware routed bottleneck used to study SparseSubpixelExpert on C3k-style extractors."""
+
+    def __init__(
+        self,
+        c1: int,
+        c2: int,
+        shortcut: bool = True,
+        g: int = 1,
+        e: float = 1.0,
+        patch_size: int = 4,
+        route_ratio: float = 0.25,
+        min_regions: int = 1,
+        use_local: bool = True,
+        k: int = 3,
+    ):
+        """Initialize the kernel-aware routed bottleneck."""
+        super().__init__()
+        hidden = max(int(c2 * e), 1)
+        self.cv1 = Conv(c1, hidden, 1, 1)
+        self.local = Bottleneck(hidden, hidden, shortcut=False, g=g, k=(k, k), e=1.0) if use_local else None
+        self.expert = SparseSubpixelExpert(
+            hidden, patch_size=patch_size, route_ratio=route_ratio, min_regions=min_regions, e=e
+        )
+        self.cv2 = Conv(hidden, c2, 1, 1, act=False)
+        self.add = shortcut and c1 == c2
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply the kernel-aware routed bottleneck with optional residual connection."""
+        y = self.cv1(x)
+        y = (self.local(y) if self.local is not None else y) + self.expert(y)
+        y = self.cv2(y)
+        return x + y if self.add else y
+
+
 class SFRC2f(nn.Module):
     """C2f-style block whose repeated units use sparse routed subpixel experts."""
 
@@ -201,3 +245,110 @@ class SFRC2f(nn.Module):
         y = list(self.cv1(x).chunk(2, 1))
         y.extend(m(y[-1]) for m in self.m)
         return self.cv2(torch.cat(y, 1))
+
+
+class SFRC3k(C3):
+    """C3k-style block whose repeated units use kernel-aware sparse routed bottlenecks."""
+
+    def __init__(
+        self,
+        c1: int,
+        c2: int,
+        n: int = 1,
+        shortcut: bool = True,
+        e: float = 0.5,
+        patch_size: int = 4,
+        route_ratio: float = 0.25,
+        min_regions: int = 1,
+        use_local: bool = True,
+        k: int = 3,
+        g: int = 1,
+    ):
+        """Initialize a C3k block with sparse routed kernel-aware bottlenecks."""
+        super().__init__(c1, c2, n, shortcut, g, e)
+        c_ = int(c2 * e)
+        self.m = nn.Sequential(
+            *(
+                SFRKBlock(
+                    c_,
+                    c_,
+                    shortcut=shortcut,
+                    g=g,
+                    e=1.0,
+                    patch_size=patch_size,
+                    route_ratio=route_ratio,
+                    min_regions=min_regions,
+                    use_local=use_local,
+                    k=k,
+                )
+                for _ in range(n)
+            )
+        )
+
+
+class SFRC3k2(C2f):
+    """C3k2-style shell whose repeated units host sparse routed C3k blocks."""
+
+    def __init__(
+        self,
+        c1: int,
+        c2: int,
+        n: int = 1,
+        shortcut: bool = True,
+        e: float = 0.5,
+        patch_size: int = 4,
+        route_ratio: float = 0.25,
+        min_regions: int = 1,
+        use_local: bool = True,
+        k: int = 3,
+        c3k: bool = True,
+        attn: bool = False,
+        g: int = 1,
+    ):
+        """Initialize a C3k2-style routed block for host-module transfer studies."""
+        super().__init__(c1, c2, n, shortcut, g, e)
+        self.m = nn.ModuleList(
+            nn.Sequential(
+                SFRKBlock(
+                    self.c,
+                    self.c,
+                    shortcut=shortcut,
+                    g=g,
+                    e=1.0,
+                    patch_size=patch_size,
+                    route_ratio=route_ratio,
+                    min_regions=min_regions,
+                    use_local=use_local,
+                    k=k,
+                ),
+                PSABlock(self.c, attn_ratio=0.5, num_heads=max(self.c // 64, 1)),
+            )
+            if attn
+            else SFRC3k(
+                self.c,
+                self.c,
+                2,
+                shortcut=shortcut,
+                g=g,
+                e=1.0,
+                patch_size=patch_size,
+                route_ratio=route_ratio,
+                min_regions=min_regions,
+                use_local=use_local,
+                k=k,
+            )
+            if c3k
+            else SFRKBlock(
+                self.c,
+                self.c,
+                shortcut=shortcut,
+                g=g,
+                e=1.0,
+                patch_size=patch_size,
+                route_ratio=route_ratio,
+                min_regions=min_regions,
+                use_local=use_local,
+                k=k,
+            )
+            for _ in range(n)
+        )
