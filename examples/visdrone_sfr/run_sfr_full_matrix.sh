@@ -68,51 +68,97 @@ RUNS=(
   "yolo12n_sfrc2f_visdrone|ultralytics/cfg/models/12/yolo12n-sfrc2f-visdrone.yaml|auto"
 )
 
+resolve_run_dir() {
+  local project="$1"
+  local base_name="$2"
+  python3 - "${project}" "${base_name}" "${DONE_MARKER_NAME}" <<'PY'
+from pathlib import Path
+import sys
+
+project = Path(sys.argv[1])
+base_name = sys.argv[2]
+done_marker_name = sys.argv[3]
+
+def count_epochs(run_dir: Path) -> int:
+    path = run_dir / "results.csv"
+    if not path.exists():
+        return 0
+    try:
+        lines = path.read_text().strip().splitlines()
+    except OSError:
+        return 0
+    return max(len(lines) - 1, 0)
+
+candidates = []
+for run_dir in project.glob(f"{base_name}*"):
+    if not run_dir.is_dir():
+        continue
+    suffix = run_dir.name[len(base_name):]
+    if suffix and not suffix.isdigit():
+        continue
+    candidates.append(run_dir)
+
+if not candidates:
+    target = project / base_name
+    print(f"{target}|0|0|0|0")
+    raise SystemExit
+
+def sort_key(run_dir: Path):
+    return (
+        count_epochs(run_dir),
+        int((run_dir / done_marker_name).exists()),
+        int((run_dir / "weights" / "last.pt").exists()),
+        int((run_dir / "weights" / "best.pt").exists()),
+        run_dir.name,
+    )
+
+target = max(candidates, key=sort_key)
+print(
+    f"{target}|{count_epochs(target)}|"
+    f"{int((target / 'weights' / 'last.pt').exists())}|"
+    f"{int((target / 'weights' / 'best.pt').exists())}|"
+    f"{int((target / done_marker_name).exists())}"
+)
+PY
+}
+
 run_train() {
   local name="$1"
   local model="$2"
   local weights="$3"
-  local run_dir="${PROJECT}/${name}"
-  local last_ckpt="${run_dir}/weights/last.pt"
-  local best_ckpt="${run_dir}/weights/best.pt"
-  local results_csv="${run_dir}/results.csv"
-  local done_marker="${run_dir}/${DONE_MARKER_NAME}"
-  local completed_epochs="0"
+  local resolved
+  local run_dir
+  local completed_epochs
+  local has_last
+  local has_best
+  local is_done
+  local last_ckpt
+  local best_ckpt
+  local done_marker
 
-  if [[ -f "${results_csv}" ]]; then
-    completed_epochs="$(python3 - "${results_csv}" <<'PY'
-from pathlib import Path
-import sys
+  resolved="$(resolve_run_dir "${PROJECT}" "${name}")"
+  IFS="|" read -r run_dir completed_epochs has_last has_best is_done <<<"${resolved}"
+  last_ckpt="${run_dir}/weights/last.pt"
+  best_ckpt="${run_dir}/weights/best.pt"
+  done_marker="${run_dir}/${DONE_MARKER_NAME}"
 
-path = Path(sys.argv[1])
-try:
-    lines = path.read_text().strip().splitlines()
-except FileNotFoundError:
-    print(0)
-    raise SystemExit
-
-print(max(len(lines) - 1, 0))
-PY
-)"
-  fi
-
-  if [[ -f "${done_marker}" ]]; then
+  if [[ "${is_done}" == "1" ]]; then
     echo
-    echo "=== SKIP ${name} (complete marker found) ==="
+    echo "=== SKIP ${name} (complete marker found in $(basename "${run_dir}")) ==="
     return 0
   fi
 
-  if [[ "${completed_epochs}" -ge "${EPOCHS}" ]] && [[ -f "${best_ckpt}" || -f "${last_ckpt}" ]]; then
+  if [[ "${completed_epochs}" -ge "${EPOCHS}" ]] && [[ "${has_best}" == "1" || "${has_last}" == "1" ]]; then
     mkdir -p "${run_dir}"
     touch "${done_marker}"
     echo
-    echo "=== SKIP ${name} (completed ${completed_epochs}/${EPOCHS} epochs) ==="
+    echo "=== SKIP ${name} (completed ${completed_epochs}/${EPOCHS} epochs in $(basename "${run_dir}")) ==="
     return 0
   fi
 
   echo
-  if [[ -f "${last_ckpt}" ]]; then
-    echo "=== RESUME ${name} (${completed_epochs}/${EPOCHS} epochs logged) ==="
+  if [[ "${has_last}" == "1" ]]; then
+    echo "=== RESUME ${name} from $(basename "${run_dir}") (${completed_epochs}/${EPOCHS} epochs logged) ==="
     python3 examples/visdrone_sfr/train_sfr_module_bench.py \
       --resume "${last_ckpt}" \
       --imgsz "${IMGSZ}" \
@@ -122,6 +168,8 @@ PY
       --device "${DEVICE}" \
       "${TRAIN_EXTRA[@]}"
   else
+    run_dir="${PROJECT}/${name}"
+    done_marker="${run_dir}/${DONE_MARKER_NAME}"
     echo "=== TRAIN ${name} ==="
     python3 examples/visdrone_sfr/train_sfr_module_bench.py \
       --model "${model}" \
@@ -145,10 +193,20 @@ PY
 
 run_eval() {
   local name="$1"
-  local ckpt="${PROJECT}/${name}/weights/best.pt"
+  local resolved
+  local run_dir
+  local completed_epochs
+  local has_last
+  local has_best
+  local is_done
+  local ckpt
   local val_name="${name}_val"
   local json_path="${PROJECT}/${val_name}/predictions.json"
   local tiny_path="${PROJECT}/${val_name}/tiny_human_metrics.json"
+
+  resolved="$(resolve_run_dir "${PROJECT}" "${name}")"
+  IFS="|" read -r run_dir completed_epochs has_last has_best is_done <<<"${resolved}"
+  ckpt="${run_dir}/weights/best.pt"
 
   if [[ ! -f "${ckpt}" ]]; then
     echo "Skipping ${name}: missing checkpoint ${ckpt}" >&2
@@ -156,7 +214,7 @@ run_eval() {
   fi
 
   echo
-  echo "=== EVAL ${name} ==="
+  echo "=== EVAL ${name} from $(basename "${run_dir}") ==="
   python3 examples/visdrone_sfr/val_psr_yolo26.py \
     --model "${ckpt}" \
     --data "${DATA}" \
