@@ -77,17 +77,28 @@ def main() -> None:
         )
 
     if args.resume:
+        resume_path = Path(args.resume).resolve()
+        resume_run_dir = resume_path.parents[1]
         model = YOLO(args.resume)
         model.train(
             trainer=VisDroneAttackTrainer,
             resume=True,
+            data=args.data,
+            project=str(resume_run_dir.parent),
+            name=resume_run_dir.name,
+            epochs=args.epochs,
             imgsz=args.imgsz,
             batch=args.batch,
             device=args.device,
             workers=args.workers,
             cache=args.cache,
+            optimizer=args.optimizer,
             patience=args.patience,
             seed=args.seed,
+            cos_lr=args.cos_lr,
+            close_mosaic=args.close_mosaic,
+            multi_scale=args.multi_scale,
+            mixup=args.mixup,
         )
         return
 
