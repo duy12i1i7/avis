@@ -24,6 +24,7 @@ DEVICE="0"
 PROJECT="${ROOT}/runs/visdrone"
 OPTIMIZER="auto"
 SEED=""
+DONE_MARKER_NAME=".train_complete"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -71,22 +72,75 @@ run_train() {
   local name="$1"
   local model="$2"
   local weights="$3"
+  local run_dir="${PROJECT}/${name}"
+  local last_ckpt="${run_dir}/weights/last.pt"
+  local best_ckpt="${run_dir}/weights/best.pt"
+  local results_csv="${run_dir}/results.csv"
+  local done_marker="${run_dir}/${DONE_MARKER_NAME}"
+  local completed_epochs="0"
+
+  if [[ -f "${results_csv}" ]]; then
+    completed_epochs="$(python3 - "${results_csv}" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+try:
+    lines = path.read_text().strip().splitlines()
+except FileNotFoundError:
+    print(0)
+    raise SystemExit
+
+print(max(len(lines) - 1, 0))
+PY
+)"
+  fi
+
+  if [[ -f "${done_marker}" ]]; then
+    echo
+    echo "=== SKIP ${name} (complete marker found) ==="
+    return 0
+  fi
+
+  if [[ "${completed_epochs}" -ge "${EPOCHS}" ]] && [[ -f "${best_ckpt}" || -f "${last_ckpt}" ]]; then
+    mkdir -p "${run_dir}"
+    touch "${done_marker}"
+    echo
+    echo "=== SKIP ${name} (completed ${completed_epochs}/${EPOCHS} epochs) ==="
+    return 0
+  fi
+
   echo
-  echo "=== TRAIN ${name} ==="
-  python3 examples/visdrone_sfr/train_sfr_module_bench.py \
-    --model "${model}" \
-    --weights "${weights}" \
-    --data "${DATA}" \
-    --imgsz "${IMGSZ}" \
-    --batch "${BATCH}" \
-    --epochs "${EPOCHS}" \
-    --patience "${PATIENCE}" \
-    --optimizer "${OPTIMIZER}" \
-    --workers "${WORKERS}" \
-    --device "${DEVICE}" \
-    --project "${PROJECT}" \
-    --name "${name}" \
-    "${TRAIN_EXTRA[@]}"
+  if [[ -f "${last_ckpt}" ]]; then
+    echo "=== RESUME ${name} (${completed_epochs}/${EPOCHS} epochs logged) ==="
+    python3 examples/visdrone_sfr/train_sfr_module_bench.py \
+      --resume "${last_ckpt}" \
+      --imgsz "${IMGSZ}" \
+      --batch "${BATCH}" \
+      --patience "${PATIENCE}" \
+      --workers "${WORKERS}" \
+      --device "${DEVICE}" \
+      "${TRAIN_EXTRA[@]}"
+  else
+    echo "=== TRAIN ${name} ==="
+    python3 examples/visdrone_sfr/train_sfr_module_bench.py \
+      --model "${model}" \
+      --weights "${weights}" \
+      --data "${DATA}" \
+      --imgsz "${IMGSZ}" \
+      --batch "${BATCH}" \
+      --epochs "${EPOCHS}" \
+      --patience "${PATIENCE}" \
+      --optimizer "${OPTIMIZER}" \
+      --workers "${WORKERS}" \
+      --device "${DEVICE}" \
+      --project "${PROJECT}" \
+      --name "${name}" \
+      "${TRAIN_EXTRA[@]}"
+  fi
+
+  mkdir -p "${run_dir}"
+  touch "${done_marker}"
 }
 
 run_eval() {
@@ -130,4 +184,3 @@ for spec in "${RUNS[@]}"; do
     run_eval "${name}"
   fi
 done
-
