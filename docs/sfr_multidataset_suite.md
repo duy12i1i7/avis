@@ -12,7 +12,19 @@ The intended claim is stronger than a single-dataset gain:
 
 ## 1. Prepare AI-TOD-v2 and TinyPerson
 
-`VisDrone` already has `VisDrone.yaml`. The other two datasets should be normalized into YOLO labels first.
+`VisDrone` already has `VisDrone.yaml`.
+
+The repo now also ships:
+
+- [AI-TODv2.yaml](/Users/udy/avis/ultralytics/ultralytics/cfg/datasets/AI-TODv2.yaml)
+- [TinyPerson.yaml](/Users/udy/avis/ultralytics/ultralytics/cfg/datasets/TinyPerson.yaml)
+
+Behavior:
+
+- `TinyPerson.yaml` can auto-download from the official Google Drive release and convert to YOLO.
+- `AI-TODv2.yaml` can auto-convert from a prepared raw root, but it does not pretend to fully auto-download the image corpus because the official AI-TOD / AI-TOD-v2 pipeline still depends on the xView training set and the AI-TOD synthesis workflow.
+
+If you already have raw COCO-style directories, you can still normalize the other two datasets manually.
 
 Use:
 
@@ -79,8 +91,8 @@ bash examples/visdrone_sfr/run_sfr_dataset_suite.sh \
   --patience 80 \
   --workers 4 \
   --visdrone-data VisDrone.yaml \
-  --aitodv2-data /data/aitodv2.yaml \
-  --tinyperson-data /data/tinyperson.yaml \
+  --aitodv2-data AI-TODv2.yaml \
+  --tinyperson-data TinyPerson.yaml \
   --batch 8 \
   --imgsz 960
 ```
@@ -124,17 +136,7 @@ bash run_sfr_multidataset.sh \
   --epochs 300 \
   --batch 8 \
   --imgsz 960 \
-  --visdrone-data VisDrone.yaml \
-  --aitodv2-output /data/aitodv2_yolo \
-  --aitodv2-train-images /data/AI-TOD-v2/train/images \
-  --aitodv2-train-json /data/AI-TOD-v2/train.json \
-  --aitodv2-val-images /data/AI-TOD-v2/val/images \
-  --aitodv2-val-json /data/AI-TOD-v2/val.json \
-  --tinyperson-output /data/tinyperson_yolo \
-  --tinyperson-train-images /data/TinyPerson/train/images \
-  --tinyperson-train-json /data/TinyPerson/train.json \
-  --tinyperson-val-images /data/TinyPerson/val/images \
-  --tinyperson-val-json /data/TinyPerson/val.json
+  --visdrone-data VisDrone.yaml
 ```
 
 For evaluation only:
@@ -146,10 +148,22 @@ bash run_sfr_multidataset.sh \
   --stage eval \
   --device 0 \
   --visdrone-data VisDrone.yaml \
-  --aitodv2-data /data/aitodv2.yaml \
-  --tinyperson-data /data/tinyperson.yaml \
+  --aitodv2-data AI-TODv2.yaml \
+  --tinyperson-data TinyPerson.yaml \
   --batch 8 \
   --imgsz 960
+```
+
+For `AI-TODv2.yaml`, set a prepared raw root before the first run:
+
+```bash
+export AITODV2_RAW_ROOT=/data/aitodv2_raw
+```
+
+For `TinyPerson.yaml`, you can optionally override the raw cache location:
+
+```bash
+export TINYPERSON_RAW_ROOT=/data/tinyperson_raw
 ```
 
 ## 2b. Bootstrap clone-and-run wrapper

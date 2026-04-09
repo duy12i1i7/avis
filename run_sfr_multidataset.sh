@@ -15,8 +15,7 @@ SEED=""
 BATCH="8"
 IMGSZ="960"
 VISDRONE_DATA="VisDrone.yaml"
-
-AITODV2_DATA=""
+AITODV2_DATA="AI-TODv2.yaml"
 AITODV2_OUTPUT=""
 AITODV2_YAML=""
 AITODV2_TRAIN_IMAGES=""
@@ -25,8 +24,7 @@ AITODV2_VAL_IMAGES=""
 AITODV2_VAL_JSON=""
 AITODV2_TEST_IMAGES=""
 AITODV2_TEST_JSON=""
-
-TINYPERSON_DATA=""
+TINYPERSON_DATA="TinyPerson.yaml"
 TINYPERSON_OUTPUT=""
 TINYPERSON_YAML=""
 TINYPERSON_TRAIN_IMAGES=""
@@ -44,8 +42,13 @@ Usage:
     --device 0 \
     --epochs 300 \
     --visdrone-data VisDrone.yaml \
-    --aitodv2-data /data/aitodv2.yaml \
-    --tinyperson-data /data/tinyperson.yaml
+    --aitodv2-data AI-TODv2.yaml \
+    --tinyperson-data TinyPerson.yaml
+
+Notes:
+  - TinyPerson.yaml can auto-download and auto-convert the official release.
+  - AI-TODv2.yaml auto-converts from a prepared raw root. Set:
+      export AITODV2_RAW_ROOT=/path/to/aitodv2_raw
 
 Or prepare AI-TOD-v2 / TinyPerson from raw COCO-style files:
   bash run_sfr_multidataset.sh \
@@ -156,14 +159,6 @@ resolve_yaml_path() {
   local output="$3"
   local explicit_data="$4"
 
-  if [[ -n "${explicit_data}" ]]; then
-    printf '%s\n' "${explicit_data}"
-    return 0
-  fi
-  if [[ -n "${explicit_yaml}" ]]; then
-    printf '%s\n' "${explicit_yaml}"
-    return 0
-  fi
   if [[ -n "${output}" ]]; then
     python - "${name}" "${output}" <<'PY'
 from pathlib import Path
@@ -173,6 +168,14 @@ name = sys.argv[1]
 output = Path(sys.argv[2]).expanduser().resolve()
 print(output.parent / f"{name}.yaml")
 PY
+    return 0
+  fi
+  if [[ -n "${explicit_yaml}" ]]; then
+    printf '%s\n' "${explicit_yaml}"
+    return 0
+  fi
+  if [[ -n "${explicit_data}" ]]; then
+    printf '%s\n' "${explicit_data}"
     return 0
   fi
   printf '%s\n' ""
@@ -204,16 +207,6 @@ prepare_dataset_if_needed "tinyperson" "${TINYPERSON_OUTPUT}" "${TINYPERSON_YAML
 
 AITODV2_DATA="$(resolve_yaml_path "aitodv2" "${AITODV2_YAML}" "${AITODV2_OUTPUT}" "${AITODV2_DATA}")"
 TINYPERSON_DATA="$(resolve_yaml_path "tinyperson" "${TINYPERSON_YAML}" "${TINYPERSON_OUTPUT}" "${TINYPERSON_DATA}")"
-
-if [[ -z "${AITODV2_DATA}" ]]; then
-  echo "AI-TOD-v2 dataset is not configured. Pass --aitodv2-data or raw COCO paths." >&2
-  exit 1
-fi
-
-if [[ -z "${TINYPERSON_DATA}" ]]; then
-  echo "TinyPerson dataset is not configured. Pass --tinyperson-data or raw COCO paths." >&2
-  exit 1
-fi
 
 SUITE_CMD=(
   bash examples/visdrone_sfr/run_sfr_dataset_suite.sh

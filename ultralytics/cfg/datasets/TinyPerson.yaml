@@ -1,0 +1,36 @@
+# Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
+
+# TinyPerson dataset by UCAS VG
+# Official repository: https://github.com/ucas-vg/PointTinyBenchmark
+# Official paper: https://openaccess.thecvf.com/content_WACV_2020/html/Yu_Scale_Match_for_Tiny_Person_Detection_WACV_2020_paper.html
+# This spec converts TinyPerson into a single-class YOLO detection dataset following the benchmark convention
+# that sea_person and earth_person are merged into one "person" class and ignore/uncertain/dense annotations are excluded.
+
+path: TinyPerson
+train: images/train
+val: images/val
+
+names:
+  0: person
+
+download: |
+  import os
+  from pathlib import Path
+
+  from ultralytics.data.sfr_external import (
+      download_google_drive_folder,
+      extract_archives,
+      prepare_tinyperson_from_raw,
+  )
+
+
+  root = Path(yaml["path"])
+  if (root / "images" / "train").exists() and (root / "labels" / "train").exists() and (root / "images" / "val").exists():
+      pass
+  else:
+      raw_root = Path(os.environ.get("TINYPERSON_RAW_ROOT", root / "raw")).expanduser()
+      raw_root.mkdir(parents=True, exist_ok=True)
+      if not any(raw_root.iterdir()):
+          download_google_drive_folder("https://drive.google.com/open?id=1KrH9uEC9q4RdKJz-k34Q6v5hRewU5HOw", raw_root)
+      extract_archives(raw_root)
+      prepare_tinyperson_from_raw(raw_root, root, yaml_path=Path(yaml["yaml_file"]))
