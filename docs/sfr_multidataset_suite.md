@@ -100,11 +100,11 @@ This launches the full model matrix on each dataset:
 - `YOLO12n` baseline
 - `YOLO12n-SFRC2f`
 
-## One-shot local setup
+## 2a. Canonical in-repo runner
 
-The canonical entrypoint is:
+The canonical "run all" entrypoint inside the repo is:
 
-- [bootstrap_sfr_multidataset.sh](/Users/udy/avis/ultralytics/bootstrap_sfr_multidataset.sh)
+- [run_sfr_multidataset.sh](/Users/udy/avis/ultralytics/run_sfr_multidataset.sh)
 
 It handles:
 
@@ -118,7 +118,8 @@ Example:
 ```bash
 cd /Users/udy/avis/ultralytics
 
-bash bootstrap_sfr_multidataset.sh \
+bash run_sfr_multidataset.sh \
+  --stage train \
   --device 0 \
   --epochs 300 \
   --batch 8 \
@@ -136,11 +137,46 @@ bash bootstrap_sfr_multidataset.sh \
   --tinyperson-val-json /data/TinyPerson/val.json
 ```
 
-The older:
+For evaluation only:
+
+```bash
+cd /Users/udy/avis/ultralytics
+
+bash run_sfr_multidataset.sh \
+  --stage eval \
+  --device 0 \
+  --visdrone-data VisDrone.yaml \
+  --aitodv2-data /data/aitodv2.yaml \
+  --tinyperson-data /data/tinyperson.yaml \
+  --batch 8 \
+  --imgsz 960
+```
+
+## 2b. Bootstrap clone-and-run wrapper
+
+If you want one extra script that can clone/pull the repo and then call the canonical runner, use:
+
+- [bootstrap_sfr_multidataset.sh](/Users/udy/avis/ultralytics/bootstrap_sfr_multidataset.sh)
+
+Example:
+
+```bash
+bash bootstrap_sfr_multidataset.sh --repo-dir /workspace/avis -- \
+  --stage train \
+  --device 0 \
+  --epochs 300 \
+  --batch 8 \
+  --imgsz 960 \
+  --visdrone-data VisDrone.yaml \
+  --aitodv2-data /data/aitodv2.yaml \
+  --tinyperson-data /data/tinyperson.yaml
+```
+
+The older example helper:
 
 - [setup_and_run_multidataset.sh](/Users/udy/avis/ultralytics/examples/visdrone_sfr/setup_and_run_multidataset.sh)
 
-is now only a compatibility shim that forwards to the root script.
+is now only a compatibility shim that forwards to the canonical root runner.
 
 Each dataset gets its own project subtree:
 
