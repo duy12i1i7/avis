@@ -32,7 +32,7 @@ def build_tiny_gt(data: dict, split: str, area_thr: float, height_thr: float) ->
 
     names = data["names"]
     name_lookup = list(names.values()) if isinstance(names, dict) else list(names)
-    target_classes = {idx + 1 for idx, name in enumerate(name_lookup) if name in {"pedestrian", "people"}}
+    target_classes = {idx + 1 for idx, name in enumerate(name_lookup) if name in {"pedestrian", "people", "person"}}
 
     root = Path(data["path"])
     image_dir = root / "images" / split

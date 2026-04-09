@@ -29,6 +29,8 @@ This directory now contains four VisDrone-focused paths:
 - `examples/visdrone_sfr/train_psr_yolo26.py`: training entrypoint for the attack recipe
 - `examples/visdrone_sfr/train_sfr_module_bench.py`: training entrypoint for host-module transfer studies
 - `examples/visdrone_sfr/run_sfr_full_matrix.sh`: one-shot launcher for the full SFR train/eval matrix
+- `examples/visdrone_sfr/run_sfr_dataset_suite.sh`: one-shot launcher for running the full matrix across VisDrone, AI-TOD-v2, and TinyPerson
+- `examples/visdrone_sfr/prepare_coco_detection_dataset.py`: convert COCO-style datasets such as AI-TOD-v2 and TinyPerson into YOLO labels plus a dataset YAML
 - `examples/visdrone_sfr/val_psr_yolo26.py`: validation entrypoint
 - `examples/visdrone_sfr/tiny_human_eval.py`: computes `tiny-human AP` for `pedestrian` and `people`
 - `examples/visdrone_sfr/run_kaggle_dual_t4.sh`: launcher for Kaggle 2xT4
@@ -76,6 +78,7 @@ python3 examples/visdrone_sfr/tiny_human_eval.py \
 ## Notes
 
 - The scripts assume the standard Ultralytics `VisDrone.yaml` split: `train 6471 / val 548 / test 1610`.
+- For multi-dataset studies, keep `VisDrone.yaml` as-is and convert `AI-TOD-v2` / `TinyPerson` with `prepare_coco_detection_dataset.py`.
 - The current default attack recipe is `YOLO26n-SPD` with transfer learning from `yolo26n.pt`.
 - `SPD` uses a frozen `YOLO26n-P2` teacher only during training and keeps the student inference graph lightweight.
 - `RSPB` keeps only P3-P5 detection outputs and uses a selective P2 bridge for small-object detail recovery.
