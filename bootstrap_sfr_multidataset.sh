@@ -24,17 +24,11 @@ Examples:
     --device 0 \
     --epochs 300 \
     --visdrone-data VisDrone.yaml \
-    --aitodv2-data /data/aitodv2.yaml \
     --tinyperson-data /data/tinyperson.yaml
 
   bash bootstrap_sfr_multidataset.sh --repo-dir /workspace/avis \
     --stage train \
     --device 0 \
-    --aitodv2-output /data/aitodv2_yolo \
-    --aitodv2-train-images /data/AI-TOD-v2/train/images \
-    --aitodv2-train-json /data/AI-TOD-v2/train.json \
-    --aitodv2-val-images /data/AI-TOD-v2/val/images \
-    --aitodv2-val-json /data/AI-TOD-v2/val.json \
     --tinyperson-output /data/tinyperson_yolo \
     --tinyperson-train-images /data/TinyPerson/train/images \
     --tinyperson-train-json /data/TinyPerson/train.json \

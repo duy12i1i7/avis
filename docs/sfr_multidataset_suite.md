@@ -98,6 +98,7 @@ This launches the full model matrix on each dataset:
 The canonical "run all" entrypoint inside the repo is:
 
 - [run_sfr_multidataset.sh](/Users/udy/avis/ultralytics/run_sfr_multidataset.sh)
+- [eval_all.sh](/Users/udy/avis/ultralytics/eval_all.sh)
 
 It handles:
 
@@ -125,8 +126,7 @@ For evaluation only:
 ```bash
 cd /Users/udy/avis/ultralytics
 
-bash run_sfr_multidataset.sh \
-  --stage eval \
+bash eval_all.sh \
   --device 0 \
   --visdrone-data VisDrone.yaml \
   --tinyperson-data TinyPerson.yaml \
@@ -187,8 +187,7 @@ To evaluate only:
 ```bash
 cd /Users/udy/avis/ultralytics
 
-bash examples/visdrone_sfr/run_sfr_dataset_suite.sh \
-  --stage eval \
+bash eval_all.sh \
   --device 0 \
   --visdrone-data VisDrone.yaml \
   --tinyperson-data TinyPerson.yaml \

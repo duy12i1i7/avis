@@ -16,7 +16,7 @@ if str(ROOT) not in sys.path:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Convert a COCO-style detection dataset into YOLO labels and YAML.")
-    parser.add_argument("--name", required=True, help="Dataset name tag, e.g. aitodv2 or tinyperson.")
+    parser.add_argument("--name", required=True, help="Dataset name tag, e.g. tinyperson.")
     parser.add_argument("--output", required=True, help="Output directory for YOLO-style dataset.")
     parser.add_argument("--train-images", required=True, help="Directory containing train images.")
     parser.add_argument("--train-json", required=True, help="COCO-style train annotation JSON.")

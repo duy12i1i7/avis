@@ -34,6 +34,7 @@ This directory now contains four VisDrone-focused paths:
 - `ultralytics/cfg/datasets/TinyPerson.yaml`: TinyPerson dataset spec that auto-downloads the official release and converts it to YOLO
 - `ultralytics/data/sfr_external.py`: helper utilities for external dataset download/extract/convert flows
 - `run_sfr_multidataset.sh`: canonical in-repo one-shot script that creates a venv, prepares TinyPerson if needed, and launches the two-dataset suite
+- `eval_all.sh`: eval-only wrapper for the VisDrone + TinyPerson suite
 - `bootstrap_sfr_multidataset.sh`: clone/pull wrapper that forwards to `run_sfr_multidataset.sh`
 - `examples/visdrone_sfr/setup_and_run_multidataset.sh`: compatibility shim that forwards to `run_sfr_multidataset.sh`
 - `examples/visdrone_sfr/val_psr_yolo26.py`: validation entrypoint
@@ -87,6 +88,7 @@ python3 examples/visdrone_sfr/tiny_human_eval.py \
 - `TinyPerson.yaml` can auto-download and auto-convert the official release.
 - You can still use `prepare_coco_detection_dataset.py` if you prefer explicit manual TinyPerson conversion.
 - Use `run_sfr_multidataset.sh` when you are already inside the repo.
+- Use `eval_all.sh` when you only want to run evaluation for the full `VisDrone + TinyPerson` suite.
 - Use `bootstrap_sfr_multidataset.sh` only when you want a wrapper that can clone/pull the repo before launching the canonical runner.
 - The current default attack recipe is `YOLO26n-SPD` with transfer learning from `yolo26n.pt`.
 - `SPD` uses a frozen `YOLO26n-P2` teacher only during training and keeps the student inference graph lightweight.
