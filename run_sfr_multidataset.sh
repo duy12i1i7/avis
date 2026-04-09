@@ -47,7 +47,11 @@ Usage:
 
 Notes:
   - TinyPerson.yaml can auto-download and auto-convert the official release.
-  - AI-TODv2.yaml auto-converts from a prepared raw root. Set:
+  - AI-TODv2.yaml auto-downloads public annotations/assets and auto-converts from them.
+  - To let AI-TODv2.yaml synthesize the remaining AI-TOD images automatically, also set:
+      export XVIEW_TRAIN_IMAGES=/path/to/xview/train_images
+      export XVIEW_GEOJSON=/path/to/xView_train.geojson
+  - If you want to control the raw cache location, set:
       export AITODV2_RAW_ROOT=/path/to/aitodv2_raw
 
 Or prepare AI-TOD-v2 / TinyPerson from raw COCO-style files:

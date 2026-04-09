@@ -86,7 +86,11 @@ python3 examples/visdrone_sfr/tiny_human_eval.py \
 - The scripts assume the standard Ultralytics `VisDrone.yaml` split: `train 6471 / val 548 / test 1610`.
 - For multi-dataset studies, keep `VisDrone.yaml` as-is.
 - `TinyPerson.yaml` can auto-download and auto-convert the official release.
-- `AI-TODv2.yaml` can auto-convert from a prepared raw root; set `AITODV2_RAW_ROOT=/path/to/raw` before the first run.
+- `AI-TODv2.yaml` uses `AITODV2_RAW_ROOT=/path/to/raw` as its optional raw cache/work directory.
+- `AI-TODv2.yaml` now auto-downloads the public v2 annotations and `AI-TOD_wo_xview` assets.
+- To let `AI-TODv2.yaml` synthesize the remaining AI-TOD images automatically, also set:
+  - `XVIEW_TRAIN_IMAGES=/path/to/xview/train_images`
+  - `XVIEW_GEOJSON=/path/to/xView_train.geojson`
 - You can still use `prepare_coco_detection_dataset.py` if you prefer explicit manual conversion.
 - Use `run_sfr_multidataset.sh` when you are already inside the repo.
 - Use `bootstrap_sfr_multidataset.sh` only when you want a wrapper that can clone/pull the repo before launching the canonical runner.

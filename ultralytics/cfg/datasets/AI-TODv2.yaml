@@ -5,10 +5,10 @@
 # Official AI-TOD repository: https://github.com/jwwangchn/AI-TOD
 #
 # Important:
-# AI-TOD-v2 does not ship like VisDrone as a single public zip inside Ultralytics. The official release provides
-# updated annotations, while the original AI-TOD images still depend on the AI-TOD construction workflow and the xView
-# training set. This spec therefore auto-converts a manually prepared raw root rather than pretending to fully
-# auto-download the complete image corpus.
+# AI-TOD-v2 does not ship like VisDrone as a single public zip inside Ultralytics. This spec therefore automates every
+# public step it can: it downloads the official AI-TOD-v2 annotations and the public AI-TOD_wo_xview assets, and if
+# XVIEW_TRAIN_IMAGES plus XVIEW_GEOJSON are available it will also try to synthesize the remaining AI-TOD images via
+# the official AI-TOD generation pipeline.
 
 path: AI-TODv2
 train: images/train
@@ -36,12 +36,5 @@ download: |
       pass
   else:
       raw_root = Path(os.environ.get("AITODV2_RAW_ROOT", root / "raw")).expanduser()
-      if not raw_root.exists():
-          raise RuntimeError(
-              "AI-TOD-v2 raw sources were not found. "
-              "Set AITODV2_RAW_ROOT to a prepared raw root or place it under AI-TODv2/raw. "
-              "Official AI-TOD-v2 annotations: https://chasel-tsui.github.io/AI-TOD-v2/ . "
-              "Official AI-TOD images/toolkit require the xView training set and the AI-TOD synthesis workflow: "
-              "https://github.com/jwwangchn/AI-TOD ."
-          )
+      raw_root.mkdir(parents=True, exist_ok=True)
       prepare_aitodv2_from_raw(raw_root, root, yaml_path=Path(yaml["yaml_file"]))

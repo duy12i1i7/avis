@@ -22,7 +22,9 @@ The repo now also ships:
 Behavior:
 
 - `TinyPerson.yaml` can auto-download from the official Google Drive release and convert to YOLO.
-- `AI-TODv2.yaml` can auto-convert from a prepared raw root, but it does not pretend to fully auto-download the image corpus because the official AI-TOD / AI-TOD-v2 pipeline still depends on the xView training set and the AI-TOD synthesis workflow.
+- `AI-TODv2.yaml` now auto-downloads the official AI-TOD-v2 annotation folder and the public `AI-TOD_wo_xview` assets.
+- If `XVIEW_TRAIN_IMAGES` and `XVIEW_GEOJSON` are available, `AI-TODv2.yaml` will also try to run the official AI-TOD image-generation pipeline automatically.
+- If `xView` is not available, the script still caches every public source automatically and then fails with a specific message about the remaining missing piece.
 
 If you already have raw COCO-style directories, you can still normalize the other two datasets manually.
 
@@ -154,10 +156,17 @@ bash run_sfr_multidataset.sh \
   --imgsz 960
 ```
 
-For `AI-TODv2.yaml`, set a prepared raw root before the first run:
+For `AI-TODv2.yaml`, you can optionally control the raw cache location:
 
 ```bash
 export AITODV2_RAW_ROOT=/data/aitodv2_raw
+```
+
+To enable the most automatic `AI-TOD-v2` path, also set:
+
+```bash
+export XVIEW_TRAIN_IMAGES=/data/xview/train_images
+export XVIEW_GEOJSON=/data/xview/xView_train.geojson
 ```
 
 For `TinyPerson.yaml`, you can optionally override the raw cache location:
