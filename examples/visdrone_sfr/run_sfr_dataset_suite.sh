@@ -13,14 +13,11 @@ WORKERS="8"
 OPTIMIZER="auto"
 SEED=""
 VISDRONE_DATA="VisDrone.yaml"
-AITODV2_DATA=""
 TINYPERSON_DATA=""
 COMMON_IMGSZ="960"
 COMMON_BATCH="16"
 VISDRONE_IMGSZ=""
 VISDRONE_BATCH=""
-AITODV2_IMGSZ=""
-AITODV2_BATCH=""
 TINYPERSON_IMGSZ=""
 TINYPERSON_BATCH=""
 
@@ -39,9 +36,6 @@ while [[ $# -gt 0 ]]; do
     --visdrone-data) VISDRONE_DATA="$2"; shift 2 ;;
     --visdrone-imgsz) VISDRONE_IMGSZ="$2"; shift 2 ;;
     --visdrone-batch) VISDRONE_BATCH="$2"; shift 2 ;;
-    --aitodv2-data) AITODV2_DATA="$2"; shift 2 ;;
-    --aitodv2-imgsz) AITODV2_IMGSZ="$2"; shift 2 ;;
-    --aitodv2-batch) AITODV2_BATCH="$2"; shift 2 ;;
     --tinyperson-data) TINYPERSON_DATA="$2"; shift 2 ;;
     --tinyperson-imgsz) TINYPERSON_IMGSZ="$2"; shift 2 ;;
     --tinyperson-batch) TINYPERSON_BATCH="$2"; shift 2 ;;
@@ -81,5 +75,4 @@ run_dataset() {
 }
 
 run_dataset "visdrone" "${VISDRONE_DATA}" "${VISDRONE_IMGSZ:-${COMMON_IMGSZ}}" "${VISDRONE_BATCH:-${COMMON_BATCH}}"
-run_dataset "aitodv2" "${AITODV2_DATA}" "${AITODV2_IMGSZ:-${COMMON_IMGSZ}}" "${AITODV2_BATCH:-${COMMON_BATCH}}"
 run_dataset "tinyperson" "${TINYPERSON_DATA}" "${TINYPERSON_IMGSZ:-${COMMON_IMGSZ}}" "${TINYPERSON_BATCH:-${COMMON_BATCH}}"

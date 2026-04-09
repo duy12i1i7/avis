@@ -29,12 +29,11 @@ This directory now contains four VisDrone-focused paths:
 - `examples/visdrone_sfr/train_psr_yolo26.py`: training entrypoint for the attack recipe
 - `examples/visdrone_sfr/train_sfr_module_bench.py`: training entrypoint for host-module transfer studies
 - `examples/visdrone_sfr/run_sfr_full_matrix.sh`: one-shot launcher for the full SFR train/eval matrix
-- `examples/visdrone_sfr/run_sfr_dataset_suite.sh`: one-shot launcher for running the full matrix across VisDrone, AI-TOD-v2, and TinyPerson
-- `examples/visdrone_sfr/prepare_coco_detection_dataset.py`: convert COCO-style datasets such as AI-TOD-v2 and TinyPerson into YOLO labels plus a dataset YAML
-- `ultralytics/cfg/datasets/AI-TODv2.yaml`: AI-TOD-v2 dataset spec that auto-converts from a prepared raw root
+- `examples/visdrone_sfr/run_sfr_dataset_suite.sh`: one-shot launcher for running the full matrix across VisDrone and TinyPerson
+- `examples/visdrone_sfr/prepare_coco_detection_dataset.py`: convert COCO-style datasets such as TinyPerson into YOLO labels plus a dataset YAML
 - `ultralytics/cfg/datasets/TinyPerson.yaml`: TinyPerson dataset spec that auto-downloads the official release and converts it to YOLO
 - `ultralytics/data/sfr_external.py`: helper utilities for external dataset download/extract/convert flows
-- `run_sfr_multidataset.sh`: canonical in-repo one-shot script that creates a venv, prepares AI-TOD-v2 / TinyPerson if needed, and launches the three-dataset suite
+- `run_sfr_multidataset.sh`: canonical in-repo one-shot script that creates a venv, prepares TinyPerson if needed, and launches the two-dataset suite
 - `bootstrap_sfr_multidataset.sh`: clone/pull wrapper that forwards to `run_sfr_multidataset.sh`
 - `examples/visdrone_sfr/setup_and_run_multidataset.sh`: compatibility shim that forwards to `run_sfr_multidataset.sh`
 - `examples/visdrone_sfr/val_psr_yolo26.py`: validation entrypoint
@@ -86,12 +85,7 @@ python3 examples/visdrone_sfr/tiny_human_eval.py \
 - The scripts assume the standard Ultralytics `VisDrone.yaml` split: `train 6471 / val 548 / test 1610`.
 - For multi-dataset studies, keep `VisDrone.yaml` as-is.
 - `TinyPerson.yaml` can auto-download and auto-convert the official release.
-- `AI-TODv2.yaml` uses `AITODV2_RAW_ROOT=/path/to/raw` as its optional raw cache/work directory.
-- `AI-TODv2.yaml` now auto-downloads the public v2 annotations and `AI-TOD_wo_xview` assets.
-- To let `AI-TODv2.yaml` synthesize the remaining AI-TOD images automatically, also set:
-  - `XVIEW_TRAIN_IMAGES=/path/to/xview/train_images`
-  - `XVIEW_GEOJSON=/path/to/xView_train.geojson`
-- You can still use `prepare_coco_detection_dataset.py` if you prefer explicit manual conversion.
+- You can still use `prepare_coco_detection_dataset.py` if you prefer explicit manual TinyPerson conversion.
 - Use `run_sfr_multidataset.sh` when you are already inside the repo.
 - Use `bootstrap_sfr_multidataset.sh` only when you want a wrapper that can clone/pull the repo before launching the canonical runner.
 - The current default attack recipe is `YOLO26n-SPD` with transfer learning from `yolo26n.pt`.

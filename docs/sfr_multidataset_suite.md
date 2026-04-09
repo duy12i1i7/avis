@@ -3,30 +3,24 @@
 This note extends the SFR host-module benchmark beyond `VisDrone` so the same matrix can be trained on:
 
 - `VisDrone`
-- `AI-TOD-v2`
 - `TinyPerson`
 
 The intended claim is stronger than a single-dataset gain:
 
 > the routed `SparseSubpixelExpert` remains useful under multiple YOLO host modules and does not collapse once the benchmark changes from a UAV detection dataset to a tiny-object or tiny-person dataset.
 
-## 1. Prepare AI-TOD-v2 and TinyPerson
+## 1. Prepare TinyPerson
 
 `VisDrone` already has `VisDrone.yaml`.
 
 The repo now also ships:
 
-- [AI-TODv2.yaml](/Users/udy/avis/ultralytics/ultralytics/cfg/datasets/AI-TODv2.yaml)
 - [TinyPerson.yaml](/Users/udy/avis/ultralytics/ultralytics/cfg/datasets/TinyPerson.yaml)
 
 Behavior:
 
 - `TinyPerson.yaml` can auto-download from the official Google Drive release and convert to YOLO.
-- `AI-TODv2.yaml` now auto-downloads the official AI-TOD-v2 annotation folder and the public `AI-TOD_wo_xview` assets.
-- If `XVIEW_TRAIN_IMAGES` and `XVIEW_GEOJSON` are available, `AI-TODv2.yaml` will also try to run the official AI-TOD image-generation pipeline automatically.
-- If `xView` is not available, the script still caches every public source automatically and then fails with a specific message about the remaining missing piece.
-
-If you already have raw COCO-style directories, you can still normalize the other two datasets manually.
+If you already have raw COCO-style directories, you can still normalize TinyPerson manually.
 
 Use:
 
@@ -45,20 +39,6 @@ It writes:
 - `labels/{split}`
 - a dataset YAML
 
-### AI-TOD-v2 example
-
-```bash
-cd /Users/udy/avis/ultralytics
-
-python3 examples/visdrone_sfr/prepare_coco_detection_dataset.py \
-  --name aitodv2 \
-  --output /data/aitodv2_yolo \
-  --train-images /data/AI-TOD-v2/train/images \
-  --train-json /data/AI-TOD-v2/train.json \
-  --val-images /data/AI-TOD-v2/val/images \
-  --val-json /data/AI-TOD-v2/val.json
-```
-
 ### TinyPerson example
 
 ```bash
@@ -75,7 +55,7 @@ python3 examples/visdrone_sfr/prepare_coco_detection_dataset.py \
 
 The script prints the generated YAML path. Use that path in the suite launcher.
 
-## 2. Run the full three-dataset suite
+## 2. Run the two-dataset suite
 
 Use:
 
@@ -93,7 +73,6 @@ bash examples/visdrone_sfr/run_sfr_dataset_suite.sh \
   --patience 80 \
   --workers 4 \
   --visdrone-data VisDrone.yaml \
-  --aitodv2-data AI-TODv2.yaml \
   --tinyperson-data TinyPerson.yaml \
   --batch 8 \
   --imgsz 960
@@ -124,8 +103,8 @@ It handles:
 
 - creates a local `venv`
 - installs the repo
-- prepares `AI-TOD-v2` and `TinyPerson` from COCO-style annotations
-- launches the three-dataset suite
+- prepares `TinyPerson` if you provide raw COCO-style annotations
+- launches the two-dataset suite
 
 Example:
 
@@ -150,23 +129,9 @@ bash run_sfr_multidataset.sh \
   --stage eval \
   --device 0 \
   --visdrone-data VisDrone.yaml \
-  --aitodv2-data AI-TODv2.yaml \
   --tinyperson-data TinyPerson.yaml \
   --batch 8 \
   --imgsz 960
-```
-
-For `AI-TODv2.yaml`, you can optionally control the raw cache location:
-
-```bash
-export AITODV2_RAW_ROOT=/data/aitodv2_raw
-```
-
-To enable the most automatic `AI-TOD-v2` path, also set:
-
-```bash
-export XVIEW_TRAIN_IMAGES=/data/xview/train_images
-export XVIEW_GEOJSON=/data/xview/xView_train.geojson
 ```
 
 For `TinyPerson.yaml`, you can optionally override the raw cache location:
@@ -191,8 +156,7 @@ bash bootstrap_sfr_multidataset.sh --repo-dir /workspace/avis -- \
   --batch 8 \
   --imgsz 960 \
   --visdrone-data VisDrone.yaml \
-  --aitodv2-data /data/aitodv2.yaml \
-  --tinyperson-data /data/tinyperson.yaml
+  --tinyperson-data TinyPerson.yaml
 ```
 
 The older example helper:
@@ -204,7 +168,6 @@ is now only a compatibility shim that forwards to the canonical root runner.
 Each dataset gets its own project subtree:
 
 - `runs/sfr_suite/visdrone`
-- `runs/sfr_suite/aitodv2`
 - `runs/sfr_suite/tinyperson`
 
 ## 3. Resume and eval
@@ -228,8 +191,7 @@ bash examples/visdrone_sfr/run_sfr_dataset_suite.sh \
   --stage eval \
   --device 0 \
   --visdrone-data VisDrone.yaml \
-  --aitodv2-data /data/aitodv2.yaml \
-  --tinyperson-data /data/tinyperson.yaml \
+  --tinyperson-data TinyPerson.yaml \
   --batch 8 \
   --imgsz 960
 ```
@@ -246,4 +208,3 @@ So:
 
 - `VisDrone` tiny-human eval works
 - `TinyPerson` tiny-human eval works
-- `AI-TOD-v2` tiny-human eval is skipped automatically when no human class is present

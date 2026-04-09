@@ -15,15 +15,6 @@ SEED=""
 BATCH="8"
 IMGSZ="960"
 VISDRONE_DATA="VisDrone.yaml"
-AITODV2_DATA="AI-TODv2.yaml"
-AITODV2_OUTPUT=""
-AITODV2_YAML=""
-AITODV2_TRAIN_IMAGES=""
-AITODV2_TRAIN_JSON=""
-AITODV2_VAL_IMAGES=""
-AITODV2_VAL_JSON=""
-AITODV2_TEST_IMAGES=""
-AITODV2_TEST_JSON=""
 TINYPERSON_DATA="TinyPerson.yaml"
 TINYPERSON_OUTPUT=""
 TINYPERSON_YAML=""
@@ -42,25 +33,15 @@ Usage:
     --device 0 \
     --epochs 300 \
     --visdrone-data VisDrone.yaml \
-    --aitodv2-data AI-TODv2.yaml \
     --tinyperson-data TinyPerson.yaml
 
 Notes:
   - TinyPerson.yaml can auto-download and auto-convert the official release.
-  - AI-TODv2.yaml auto-downloads public annotations/assets and auto-converts from them.
-  - To let AI-TODv2.yaml synthesize the remaining AI-TOD images automatically, also set:
-      export XVIEW_TRAIN_IMAGES=/path/to/xview/train_images
-      export XVIEW_GEOJSON=/path/to/xView_train.geojson
-  - If you want to control the raw cache location, set:
-      export AITODV2_RAW_ROOT=/path/to/aitodv2_raw
+  - To control its raw cache location, set:
+      export TINYPERSON_RAW_ROOT=/path/to/tinyperson_raw
 
-Or prepare AI-TOD-v2 / TinyPerson from raw COCO-style files:
+Or prepare TinyPerson from raw COCO-style files:
   bash run_sfr_multidataset.sh \
-    --aitodv2-output /data/aitodv2_yolo \
-    --aitodv2-train-images /data/AI-TOD-v2/train/images \
-    --aitodv2-train-json /data/AI-TOD-v2/train.json \
-    --aitodv2-val-images /data/AI-TOD-v2/val/images \
-    --aitodv2-val-json /data/AI-TOD-v2/val.json \
     --tinyperson-output /data/tinyperson_yolo \
     --tinyperson-train-images /data/TinyPerson/train/images \
     --tinyperson-train-json /data/TinyPerson/train.json \
@@ -83,16 +64,6 @@ while [[ $# -gt 0 ]]; do
     --batch) BATCH="$2"; shift 2 ;;
     --imgsz) IMGSZ="$2"; shift 2 ;;
     --visdrone-data) VISDRONE_DATA="$2"; shift 2 ;;
-
-    --aitodv2-data) AITODV2_DATA="$2"; shift 2 ;;
-    --aitodv2-output) AITODV2_OUTPUT="$2"; shift 2 ;;
-    --aitodv2-yaml) AITODV2_YAML="$2"; shift 2 ;;
-    --aitodv2-train-images) AITODV2_TRAIN_IMAGES="$2"; shift 2 ;;
-    --aitodv2-train-json) AITODV2_TRAIN_JSON="$2"; shift 2 ;;
-    --aitodv2-val-images) AITODV2_VAL_IMAGES="$2"; shift 2 ;;
-    --aitodv2-val-json) AITODV2_VAL_JSON="$2"; shift 2 ;;
-    --aitodv2-test-images) AITODV2_TEST_IMAGES="$2"; shift 2 ;;
-    --aitodv2-test-json) AITODV2_TEST_JSON="$2"; shift 2 ;;
 
     --tinyperson-data) TINYPERSON_DATA="$2"; shift 2 ;;
     --tinyperson-output) TINYPERSON_OUTPUT="$2"; shift 2 ;;
@@ -206,10 +177,8 @@ PY
 
 nvidia-smi -L || true
 
-prepare_dataset_if_needed "aitodv2" "${AITODV2_OUTPUT}" "${AITODV2_YAML}" "${AITODV2_TRAIN_IMAGES}" "${AITODV2_TRAIN_JSON}" "${AITODV2_VAL_IMAGES}" "${AITODV2_VAL_JSON}" "${AITODV2_TEST_IMAGES}" "${AITODV2_TEST_JSON}"
 prepare_dataset_if_needed "tinyperson" "${TINYPERSON_OUTPUT}" "${TINYPERSON_YAML}" "${TINYPERSON_TRAIN_IMAGES}" "${TINYPERSON_TRAIN_JSON}" "${TINYPERSON_VAL_IMAGES}" "${TINYPERSON_VAL_JSON}" "${TINYPERSON_TEST_IMAGES}" "${TINYPERSON_TEST_JSON}"
 
-AITODV2_DATA="$(resolve_yaml_path "aitodv2" "${AITODV2_YAML}" "${AITODV2_OUTPUT}" "${AITODV2_DATA}")"
 TINYPERSON_DATA="$(resolve_yaml_path "tinyperson" "${TINYPERSON_YAML}" "${TINYPERSON_OUTPUT}" "${TINYPERSON_DATA}")"
 
 SUITE_CMD=(
@@ -224,7 +193,6 @@ SUITE_CMD=(
   --batch "${BATCH}"
   --imgsz "${IMGSZ}"
   --visdrone-data "${VISDRONE_DATA}"
-  --aitodv2-data "${AITODV2_DATA}"
   --tinyperson-data "${TINYPERSON_DATA}"
 )
 
