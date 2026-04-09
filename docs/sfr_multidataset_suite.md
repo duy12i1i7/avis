@@ -136,6 +136,25 @@ bash examples/visdrone_sfr/setup_and_run_multidataset.sh \
   --tinyperson-val-json /data/TinyPerson/val.json
 ```
 
+## One-shot from clone
+
+If you want the process to start from repository bootstrap as well, use:
+
+- [bootstrap_sfr_multidataset.sh](/Users/udy/avis/ultralytics/bootstrap_sfr_multidataset.sh)
+
+Example:
+
+```bash
+bash bootstrap_sfr_multidataset.sh --repo-dir /workspace/avis -- \
+  --device 0 \
+  --epochs 300 \
+  --batch 8 \
+  --imgsz 960 \
+  --visdrone-data VisDrone.yaml \
+  --aitodv2-data /data/aitodv2.yaml \
+  --tinyperson-data /data/tinyperson.yaml
+```
+
 Each dataset gets its own project subtree:
 
 - `runs/sfr_suite/visdrone`
