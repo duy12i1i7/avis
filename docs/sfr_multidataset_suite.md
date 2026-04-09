@@ -102,23 +102,23 @@ This launches the full model matrix on each dataset:
 
 ## One-shot local setup
 
-If you want one command that:
+The canonical entrypoint is:
+
+- [bootstrap_sfr_multidataset.sh](/Users/udy/avis/ultralytics/bootstrap_sfr_multidataset.sh)
+
+It handles:
 
 - creates a local `venv`
 - installs the repo
 - prepares `AI-TOD-v2` and `TinyPerson` from COCO-style annotations
 - launches the three-dataset suite
 
-use:
-
-- [setup_and_run_multidataset.sh](/Users/udy/avis/ultralytics/examples/visdrone_sfr/setup_and_run_multidataset.sh)
-
 Example:
 
 ```bash
 cd /Users/udy/avis/ultralytics
 
-bash examples/visdrone_sfr/setup_and_run_multidataset.sh \
+bash bootstrap_sfr_multidataset.sh \
   --device 0 \
   --epochs 300 \
   --batch 8 \
@@ -136,24 +136,11 @@ bash examples/visdrone_sfr/setup_and_run_multidataset.sh \
   --tinyperson-val-json /data/TinyPerson/val.json
 ```
 
-## One-shot from clone
+The older:
 
-If you want the process to start from repository bootstrap as well, use:
+- [setup_and_run_multidataset.sh](/Users/udy/avis/ultralytics/examples/visdrone_sfr/setup_and_run_multidataset.sh)
 
-- [bootstrap_sfr_multidataset.sh](/Users/udy/avis/ultralytics/bootstrap_sfr_multidataset.sh)
-
-Example:
-
-```bash
-bash bootstrap_sfr_multidataset.sh --repo-dir /workspace/avis -- \
-  --device 0 \
-  --epochs 300 \
-  --batch 8 \
-  --imgsz 960 \
-  --visdrone-data VisDrone.yaml \
-  --aitodv2-data /data/aitodv2.yaml \
-  --tinyperson-data /data/tinyperson.yaml
-```
+is now only a compatibility shim that forwards to the root script.
 
 Each dataset gets its own project subtree:
 
