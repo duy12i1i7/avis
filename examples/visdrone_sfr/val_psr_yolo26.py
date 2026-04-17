@@ -22,6 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--split", default="val")
     parser.add_argument("--project", default=str(ROOT / "runs" / "visdrone"))
     parser.add_argument("--name", default="yolo26_sfr_val")
+    parser.add_argument("--exist-ok", action="store_true", help="Reuse the validation output directory if it exists.")
     parser.add_argument("--save-json", action="store_true", help="Export predictions.json for tiny-human AP analysis.")
     return parser.parse_args()
 
@@ -37,6 +38,7 @@ def main() -> None:
         split=args.split,
         project=args.project,
         name=args.name,
+        exist_ok=args.exist_ok,
         save_json=args.save_json,
     )
     print(metrics)

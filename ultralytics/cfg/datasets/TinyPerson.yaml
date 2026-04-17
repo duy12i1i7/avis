@@ -31,6 +31,6 @@ download: |
       raw_root = Path(os.environ.get("TINYPERSON_RAW_ROOT", root / "raw")).expanduser()
       raw_root.mkdir(parents=True, exist_ok=True)
       if not any(raw_root.iterdir()):
-          download_google_drive_folder("https://drive.google.com/open?id=1KrH9uEC9q4RdKJz-k34Q6v5hRewU5HOw", raw_root)
+          download_google_drive_folder("https://drive.google.com/drive/folders/1KrH9uEC9q4RdKJz-k34Q6v5hRewU5HOw", raw_root)
       extract_archives(raw_root)
       prepare_tinyperson_from_raw(raw_root, root, yaml_path=Path(yaml["yaml_file"]))

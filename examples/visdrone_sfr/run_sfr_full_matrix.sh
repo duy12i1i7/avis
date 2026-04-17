@@ -234,8 +234,9 @@ run_eval() {
   local is_done
   local ckpt
   local val_name="${name}_val"
-  local json_path="${PROJECT}/${val_name}/predictions.json"
-  local tiny_path="${PROJECT}/${val_name}/tiny_human_metrics.json"
+  local val_dir="${PROJECT}/${val_name}"
+  local json_path="${val_dir}/predictions.json"
+  local tiny_path="${val_dir}/tiny_human_metrics.json"
 
   resolved="$(resolve_run_dir "${PROJECT}" "${name}")"
   IFS="|" read -r run_dir completed_epochs has_last has_best is_done <<<"${resolved}"
@@ -256,13 +257,18 @@ run_eval() {
     --device "${DEVICE}" \
     --project "${PROJECT}" \
     --name "${val_name}" \
+    --exist-ok \
     --save-json
 
   if [[ "$(should_run_tiny_eval "${DATA}" "${TINY_EVAL_MODE}")" == "1" ]]; then
-    python3 examples/visdrone_sfr/tiny_human_eval.py \
-      --pred-json "${json_path}" \
-      --data "${DATA}" \
-      --save "${tiny_path}"
+    if [[ -s "${json_path}" ]]; then
+      python3 examples/visdrone_sfr/tiny_human_eval.py \
+        --pred-json "${json_path}" \
+        --data "${DATA}" \
+        --save "${tiny_path}"
+    else
+      echo "Skipping tiny-human eval for ${name}: missing or empty ${json_path}" >&2
+    fi
   else
     echo "Skipping tiny-human eval for ${name}: dataset has no pedestrian/people/person classes."
   fi

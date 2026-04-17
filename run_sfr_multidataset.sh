@@ -161,9 +161,9 @@ cd "${ROOT}"
 python3 -m venv "${VENV_DIR}"
 source "${VENV_DIR}/bin/activate"
 
-python -m pip install -U pip setuptools wheel
+python -m pip install -U pip "setuptools<82" wheel
 python -m pip install -e .
-python -m pip install pycocotools
+python -m pip install pycocotools typeguard
 
 python - <<'PY'
 import torch

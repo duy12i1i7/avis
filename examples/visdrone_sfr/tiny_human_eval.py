@@ -86,8 +86,15 @@ def build_tiny_gt(data: dict, split: str, area_thr: float, height_thr: float) ->
 
 def filter_predictions(pred_json: Path, gt: dict, area_thr: float, height_thr: float) -> list[dict]:
     categories = {category["id"] for category in gt["categories"]}
-    with pred_json.open("r", encoding="utf-8") as handle:
-        predictions = json.load(handle)
+    if not pred_json.exists():
+        raise SystemExit(f"Prediction JSON not found: {pred_json}")
+    if pred_json.stat().st_size == 0:
+        raise SystemExit(f"Prediction JSON is empty: {pred_json}")
+    try:
+        with pred_json.open("r", encoding="utf-8") as handle:
+            predictions = json.load(handle)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Prediction JSON is invalid: {pred_json}") from exc
     filtered = []
     for pred in predictions:
         if pred["category_id"] not in categories:
