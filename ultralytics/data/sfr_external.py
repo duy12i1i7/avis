@@ -189,7 +189,7 @@ def download_google_drive_file(file_or_url: str, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if output_path.exists():
         return
-    subprocess.run([sys.executable, "-m", "gdown", "--fuzzy", file_or_url, "-O", str(output_path)], check=True)
+    subprocess.run([sys.executable, "-m", "gdown", file_or_url, "-O", str(output_path)], check=True)
 
 
 def download_google_drive_folder(folder: str, output_dir: Path) -> None:
