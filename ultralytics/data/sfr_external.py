@@ -33,10 +33,24 @@ def place_image(src: Path, dst: Path, mode: str) -> None:
 
 def resolve_image_path(images_dir: Path, file_name: str) -> Path:
     rel = Path(file_name)
-    candidates = [images_dir / rel, images_dir / rel.name]
+    candidates: list[Path] = []
+    for root in [images_dir, *images_dir.parents]:
+        if root == root.parent:
+            break
+        candidates.extend([root / rel, root / rel.name])
     for candidate in candidates:
         if candidate.exists():
             return candidate
+    basename_fallback: Path | None = None
+    for candidate in images_dir.rglob(rel.name):
+        if not candidate.is_file():
+            continue
+        if len(candidate.parts) >= len(rel.parts) and candidate.parts[-len(rel.parts) :] == rel.parts:
+            return candidate
+        if basename_fallback is None:
+            basename_fallback = candidate
+    if basename_fallback is not None:
+        return basename_fallback
     raise FileNotFoundError(f"Could not resolve image '{file_name}' under {images_dir}")
 
 
@@ -282,6 +296,12 @@ def directory_has_images(path: Path) -> bool:
     return any(child.is_file() and child.suffix.lower() in IMAGE_SUFFIXES for child in path.iterdir())
 
 
+def subtree_has_images(path: Path) -> bool:
+    if path is None or not path.is_dir():
+        return False
+    return any(child.is_file() and child.suffix.lower() in IMAGE_SUFFIXES for child in path.rglob("*"))
+
+
 def normalize_image_dir(path: Path | None, split_name: str) -> Path | None:
     if path is None or not path.exists():
         return None
@@ -291,6 +311,10 @@ def normalize_image_dir(path: Path | None, split_name: str) -> Path | None:
     nested = path / split_name
     if directory_has_images(nested):
         return nested
+    if nested.is_dir() and subtree_has_images(nested):
+        return nested
+    if subtree_has_images(path):
+        return path
     for candidate in sorted(path.rglob("*")):
         if candidate.is_dir() and directory_has_images(candidate):
             return candidate
