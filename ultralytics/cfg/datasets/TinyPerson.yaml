@@ -30,7 +30,6 @@ download: |
   else:
       raw_root = Path(os.environ.get("TINYPERSON_RAW_ROOT", root / "raw")).expanduser()
       raw_root.mkdir(parents=True, exist_ok=True)
-      if not any(raw_root.iterdir()):
-          download_tinyperson_minimal_assets(raw_root)
+      download_tinyperson_minimal_assets(raw_root)
       extract_archives(raw_root)
       prepare_tinyperson_from_raw(raw_root, root, yaml_path=Path(yaml["yaml_file"]))

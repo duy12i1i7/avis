@@ -212,15 +212,41 @@ def download_tinyperson_minimal_assets(raw_root: Path) -> None:
         download_google_drive_file(f"https://drive.google.com/uc?id={file_id}", raw_root / rel_path)
 
 
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+
+
+def directory_has_images(path: Path) -> bool:
+    if path is None or not path.is_dir():
+        return False
+    return any(child.is_file() and child.suffix.lower() in IMAGE_SUFFIXES for child in path.iterdir())
+
+
+def normalize_image_dir(path: Path | None, split_name: str) -> Path | None:
+    if path is None or not path.exists():
+        return None
+    path = path.expanduser().resolve()
+    if directory_has_images(path):
+        return path
+    nested = path / split_name
+    if directory_has_images(nested):
+        return nested
+    for candidate in sorted(path.rglob("*")):
+        if candidate.is_dir() and directory_has_images(candidate):
+            return candidate
+    return None
+
+
 def find_image_dir(root: Path, split_name: str) -> Path | None:
     root = root.expanduser().resolve()
     if not root.exists():
         return None
     direct = root / split_name
-    if direct.exists():
+    direct = normalize_image_dir(direct, split_name)
+    if direct is not None:
         return direct
     for candidate in root.rglob(split_name):
-        if candidate.is_dir():
+        candidate = normalize_image_dir(candidate, split_name)
+        if candidate is not None:
             return candidate
     return None
 
@@ -239,6 +265,8 @@ def prepare_tinyperson_from_raw(raw_root: Path, output_root: Path, *, yaml_path:
         ],
     )
     val_images = find_first_existing(raw_root, ["tiny_set/test", "test"])
+    train_images = normalize_image_dir(train_images, "train")
+    val_images = normalize_image_dir(val_images, "test")
     if train_images is None:
         train_images = find_image_dir(raw_root / "tiny_set", "train")
     if val_images is None:
