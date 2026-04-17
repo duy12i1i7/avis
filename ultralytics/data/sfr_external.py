@@ -183,10 +183,46 @@ def ensure_gdown() -> None:
         subprocess.run([sys.executable, "-m", "pip", "install", "gdown"], check=True)
 
 
+def download_google_drive_file(file_or_url: str, output_path: Path) -> None:
+    ensure_gdown()
+    output_path = output_path.expanduser().resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if output_path.exists():
+        return
+    subprocess.run([sys.executable, "-m", "gdown", "--fuzzy", file_or_url, "-O", str(output_path)], check=True)
+
+
 def download_google_drive_folder(folder: str, output_dir: Path) -> None:
     ensure_gdown()
     output_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run([sys.executable, "-m", "gdown", "--folder", folder, "-O", str(output_dir)], check=True)
+
+
+TINYPERSON_MINIMAL_ASSETS = {
+    "tiny_set/train.tar.gz": "1tqGbW7_3X_-CpQvZ9ls3tYTJafsoKOr4",
+    "tiny_set/test.tar.gz": "1uq148D2Nxs3JiHJmZW8zT1DEnd6cPelF",
+    "tiny_set/annotations/tiny_set_train.json": "1vo-ggU2lltIIze9tIMhBCRpFEz3h2Hv4",
+    "tiny_set/annotations/task/tiny_set_test_all.json": "16mIDH58dukozi2iQwBqDTURYBDNNWrxy",
+}
+
+
+def download_tinyperson_minimal_assets(raw_root: Path) -> None:
+    raw_root = raw_root.expanduser().resolve()
+    for rel_path, file_id in TINYPERSON_MINIMAL_ASSETS.items():
+        download_google_drive_file(f"https://drive.google.com/uc?id={file_id}", raw_root / rel_path)
+
+
+def find_image_dir(root: Path, split_name: str) -> Path | None:
+    root = root.expanduser().resolve()
+    if not root.exists():
+        return None
+    direct = root / split_name
+    if direct.exists():
+        return direct
+    for candidate in root.rglob(split_name):
+        if candidate.is_dir():
+            return candidate
+    return None
 
 
 def prepare_tinyperson_from_raw(raw_root: Path, output_root: Path, *, yaml_path: Path, image_mode: str = "symlink") -> None:
@@ -203,6 +239,10 @@ def prepare_tinyperson_from_raw(raw_root: Path, output_root: Path, *, yaml_path:
         ],
     )
     val_images = find_first_existing(raw_root, ["tiny_set/test", "test"])
+    if train_images is None:
+        train_images = find_image_dir(raw_root / "tiny_set", "train")
+    if val_images is None:
+        val_images = find_image_dir(raw_root / "tiny_set", "test")
     train_json = find_first_existing(
         raw_root,
         [
