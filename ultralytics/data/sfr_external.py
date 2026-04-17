@@ -57,8 +57,10 @@ def build_category_mapping(
         for category in load_json(path).get("categories", []):
             category_id = int(category["id"])
             category_name = str(category.get("name", category_id))
-            if collapse_to_supercategory and category.get("supercategory"):
-                category_name = str(category["supercategory"])
+            if collapse_to_supercategory:
+                supercategory = category.get("supercategory")
+                if supercategory and str(supercategory).strip().lower() != "none":
+                    category_name = str(supercategory)
             if name_overrides:
                 category_name = name_overrides.get(category_name, category_name)
             if category_id in categories and categories[category_id] != category_name:
