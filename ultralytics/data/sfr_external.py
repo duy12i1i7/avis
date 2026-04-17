@@ -6,7 +6,10 @@ import shutil
 import subprocess
 import sys
 from collections import defaultdict
+from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import urlencode, urljoin
+from urllib.request import HTTPCookieProcessor, Request, build_opener
 
 
 def load_json(path: Path) -> dict:
@@ -183,13 +186,69 @@ def ensure_gdown() -> None:
         subprocess.run([sys.executable, "-m", "pip", "install", "gdown"], check=True)
 
 
+class GoogleDriveDownloadFormParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.in_download_form = False
+        self.action: str | None = None
+        self.fields: dict[str, str] = {}
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attrs_dict = dict(attrs)
+        if tag == "form" and attrs_dict.get("id") == "download-form":
+            self.in_download_form = True
+            self.action = attrs_dict.get("action")
+            return
+        if self.in_download_form and tag == "input":
+            name = attrs_dict.get("name")
+            value = attrs_dict.get("value", "")
+            if name:
+                self.fields[name] = value
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "form" and self.in_download_form:
+            self.in_download_form = False
+
+
+def stream_response_to_file(response, output_path: Path) -> None:
+    with output_path.open("wb") as handle:
+        shutil.copyfileobj(response, handle)
+
+
 def download_google_drive_file(file_or_url: str, output_path: Path) -> None:
-    ensure_gdown()
     output_path = output_path.expanduser().resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if output_path.exists():
         return
-    subprocess.run([sys.executable, "-m", "gdown", file_or_url, "-O", str(output_path)], check=True)
+
+    if "://" not in file_or_url:
+        file_or_url = f"https://drive.google.com/uc?id={file_or_url}&export=download"
+
+    opener = build_opener(HTTPCookieProcessor())
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = opener.open(Request(file_or_url, headers=headers), timeout=120)
+    content_type = response.headers.get("Content-Type", "").lower()
+    content_disposition = response.headers.get("Content-Disposition", "")
+
+    if "text/html" not in content_type and "attachment" in content_disposition.lower():
+        stream_response_to_file(response, output_path)
+        return
+
+    html = response.read().decode("utf-8", "ignore")
+    if "Virus scan warning" not in html or 'id="download-form"' not in html:
+        raise RuntimeError(f"Could not download Google Drive file from {file_or_url}")
+
+    parser = GoogleDriveDownloadFormParser()
+    parser.feed(html)
+    if not parser.action or not parser.fields:
+        raise RuntimeError(f"Could not parse Google Drive confirmation form for {file_or_url}")
+
+    confirm_url = parser.action
+    if not confirm_url.startswith("http"):
+        confirm_url = urljoin(response.geturl(), confirm_url)
+    confirm_url = f"{confirm_url}?{urlencode(parser.fields)}"
+    confirmed = opener.open(Request(confirm_url, headers=headers), timeout=120)
+    stream_response_to_file(confirmed, output_path)
 
 
 def download_google_drive_folder(folder: str, output_dir: Path) -> None:
