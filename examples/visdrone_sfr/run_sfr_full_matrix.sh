@@ -198,6 +198,7 @@ run_train() {
   local resume_ckpt=""
   local run_batch="${BATCH}"
   local run_optimizer="${OPTIMIZER}"
+  local quarantine_run_dir=""
   local -a run_extra=("${TRAIN_EXTRA[@]}")
 
   resolved="$(resolve_run_dir "${PROJECT}" "${name}")"
@@ -236,13 +237,20 @@ run_train() {
       echo "=== WARN ${name}: last.pt is non-finite, preserving as last.nan.pt ==="
       mv -f "${last_ckpt}" "${run_dir}/weights/last.nan.pt"
       has_last="0"
-      if [[ "${has_best}" == "1" && "$(checkpoint_is_finite "${best_ckpt}")" == "1" ]]; then
-        resume_ckpt="${best_ckpt}"
-      else
-        echo "=== ERROR ${name}: no finite checkpoint available for recovery ===" >&2
-        return 1
-      fi
     fi
+  fi
+
+  if [[ -z "${resume_ckpt}" && "${has_best}" == "1" && "$(checkpoint_is_finite "${best_ckpt}")" == "1" ]]; then
+    resume_ckpt="${best_ckpt}"
+  fi
+
+  if [[ -z "${resume_ckpt}" && ( "${has_last}" == "1" || "${has_best}" == "1" || "${completed_epochs}" -gt 0 ) ]]; then
+    quarantine_run_dir="${run_dir}_corrupt_nan_$(date +%Y%m%d_%H%M%S)"
+    echo "=== WARN ${name}: no finite checkpoint available, moving $(basename "${run_dir}") to $(basename "${quarantine_run_dir}") and restarting fresh ==="
+    mv "${run_dir}" "${quarantine_run_dir}"
+    has_last="0"
+    has_best="0"
+    completed_epochs="0"
   fi
 
   if [[ -n "${resume_ckpt}" ]]; then
