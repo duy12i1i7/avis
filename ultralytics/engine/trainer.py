@@ -511,14 +511,20 @@ class BaseTrainer:
             if RANK in {-1, 0}:
                 self.ema.update_attr(self.model, include=["yaml", "nc", "args", "names", "stride", "class_weights"])
 
+            # NaN recovery before validation/save to avoid poisoning last.pt with non-finite weights
+            if self._handle_nan_recovery(epoch, check_fitness=False):
+                continue
+
             # Validation
             final_epoch = epoch + 1 >= self.epochs
+            validated = False
             if self.args.val or final_epoch or self.stopper.possible_stop or self.stop:
                 self._clear_memory(threshold=0.5)  # prevent VRAM spike
                 self.metrics, self.fitness = self.validate()
+                validated = True
 
-            # NaN recovery
-            if self._handle_nan_recovery(epoch):
+            # NaN recovery for metric collapse after validation
+            if validated and self._handle_nan_recovery(epoch, check_loss=False):
                 continue
 
             self.nan_recovery_attempts = 0
@@ -896,12 +902,38 @@ class BaseTrainer:
             self.ema.updates = ckpt["updates"]
         self.best_fitness = ckpt.get("best_fitness", 0.0)
 
-    def _handle_nan_recovery(self, epoch):
+    @staticmethod
+    def _checkpoint_state_is_finite(state_dict):
+        """Return True when every tensor in a checkpoint state_dict contains only finite values."""
+        return all(torch.isfinite(v).all() for v in state_dict.values() if isinstance(v, torch.Tensor))
+
+    def _load_finite_recovery_checkpoint(self):
+        """Load the first usable recovery checkpoint, preferring last.pt and falling back to best.pt."""
+        seen = set()
+        for candidate in (self.last, self.best):
+            candidate = Path(candidate)
+            key = str(candidate.resolve()) if candidate.exists() else str(candidate)
+            if key in seen or not candidate.exists():
+                continue
+            seen.add(key)
+            _, ckpt = load_checkpoint(candidate)
+            recovery_model = ckpt.get("ema") or ckpt.get("model")
+            if recovery_model is None:
+                del ckpt
+                continue
+            recovery_state = recovery_model.float().state_dict()
+            if self._checkpoint_state_is_finite(recovery_state):
+                return candidate, ckpt, recovery_state
+            LOGGER.warning(f"Skipping recovery checkpoint {candidate}: NaN/Inf weights detected")
+            del ckpt, recovery_state
+        return None, None, None
+
+    def _handle_nan_recovery(self, epoch, *, check_loss=True, check_fitness=True):
         """Detect and recover from NaN/Inf loss and fitness collapse by loading last checkpoint."""
-        loss_nan = self.loss is not None and not self.loss.isfinite()
-        fitness_nan = self.fitness is not None and not np.isfinite(self.fitness)
-        fitness_collapse = self.best_fitness and self.best_fitness > 0 and self.fitness == 0
-        corrupted = RANK in {-1, 0} and loss_nan and (fitness_nan or fitness_collapse)
+        loss_nan = check_loss and self.loss is not None and not self.loss.isfinite()
+        fitness_nan = check_fitness and self.fitness is not None and not np.isfinite(self.fitness)
+        fitness_collapse = check_fitness and self.best_fitness and self.best_fitness > 0 and self.fitness == 0
+        corrupted = RANK in {-1, 0} and (loss_nan or fitness_nan or fitness_collapse)
         reason = "Loss NaN/Inf" if loss_nan else "Fitness NaN/Inf" if fitness_nan else "Fitness collapse"
         if RANK != -1:  # DDP: broadcast to all ranks
             broadcast_list = [corrupted if RANK == 0 else None]
@@ -909,18 +941,16 @@ class BaseTrainer:
             corrupted = broadcast_list[0]
         if not corrupted:
             return False
-        if epoch == self.start_epoch or not self.last.exists():
-            LOGGER.warning(f"{reason} detected but can not recover from last.pt...")
-            return False  # Cannot recover on first epoch, let training continue
         self.nan_recovery_attempts += 1
         if self.nan_recovery_attempts > 3:
             raise RuntimeError(f"Training failed: NaN persisted for {self.nan_recovery_attempts} epochs")
-        LOGGER.warning(f"{reason} detected (attempt {self.nan_recovery_attempts}/3), recovering from last.pt...")
+        recovery_path, ckpt, ema_state = self._load_finite_recovery_checkpoint()
+        if recovery_path is None:
+            raise RuntimeError(f"{reason} detected but no finite recovery checkpoint is available")
+        LOGGER.warning(
+            f"{reason} detected (attempt {self.nan_recovery_attempts}/3), recovering from {recovery_path.name}..."
+        )
         self._model_train()  # set model to train mode before loading checkpoint to avoid inference tensor errors
-        _, ckpt = load_checkpoint(self.last)
-        ema_state = ckpt["ema"].float().state_dict()
-        if not all(torch.isfinite(v).all() for v in ema_state.values() if isinstance(v, torch.Tensor)):
-            raise RuntimeError(f"Checkpoint {self.last} is corrupted with NaN/Inf weights")
         unwrap_model(self.model).load_state_dict(ema_state)  # Load EMA weights into model
         self._load_checkpoint_state(ckpt)  # Load optimizer/scaler/EMA/best_fitness
         del ckpt, ema_state

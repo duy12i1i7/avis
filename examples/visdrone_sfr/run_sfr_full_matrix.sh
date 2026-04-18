@@ -131,6 +131,33 @@ print(
 PY
 }
 
+checkpoint_is_finite() {
+  local ckpt="$1"
+  python3 - "${ckpt}" <<'PY'
+from pathlib import Path
+import sys
+
+import torch
+
+path = Path(sys.argv[1])
+if not path.exists():
+    print(0)
+    raise SystemExit
+
+try:
+    ckpt = torch.load(path, map_location="cpu")
+    model = ckpt.get("ema") or ckpt.get("model")
+    if model is None or not hasattr(model, "state_dict"):
+        print(0)
+        raise SystemExit
+    state_dict = model.state_dict()
+    finite = all(torch.isfinite(v).all() for v in state_dict.values() if isinstance(v, torch.Tensor))
+    print(int(finite))
+except Exception:
+    print(0)
+PY
+}
+
 should_run_tiny_eval() {
   local data_path="$1"
   local mode="$2"
@@ -168,6 +195,10 @@ run_train() {
   local last_ckpt
   local best_ckpt
   local done_marker
+  local resume_ckpt=""
+  local run_batch="${BATCH}"
+  local run_optimizer="${OPTIMIZER}"
+  local -a run_extra=("${TRAIN_EXTRA[@]}")
 
   resolved="$(resolve_run_dir "${PROJECT}" "${name}")"
   IFS="|" read -r run_dir completed_epochs has_last has_best is_done <<<"${resolved}"
@@ -189,17 +220,43 @@ run_train() {
     return 0
   fi
 
+  if [[ "${DATASET_TAG}" == "tinyperson" && "${name}" == *"sfrc3k2"* ]]; then
+    if [[ "${run_batch}" -gt 4 ]]; then
+      run_batch="4"
+    fi
+    run_optimizer="AdamW"
+    run_extra+=(--no-amp --lr0 0.001)
+  fi
+
   echo
   if [[ "${has_last}" == "1" ]]; then
-    echo "=== RESUME ${name} from $(basename "${run_dir}") (${completed_epochs}/${EPOCHS} epochs logged) ==="
+    if [[ "$(checkpoint_is_finite "${last_ckpt}")" == "1" ]]; then
+      resume_ckpt="${last_ckpt}"
+    else
+      echo "=== WARN ${name}: last.pt is non-finite, preserving as last.nan.pt ==="
+      mv -f "${last_ckpt}" "${run_dir}/weights/last.nan.pt"
+      has_last="0"
+      if [[ "${has_best}" == "1" && "$(checkpoint_is_finite "${best_ckpt}")" == "1" ]]; then
+        resume_ckpt="${best_ckpt}"
+      else
+        echo "=== ERROR ${name}: no finite checkpoint available for recovery ===" >&2
+        return 1
+      fi
+    fi
+  fi
+
+  if [[ -n "${resume_ckpt}" ]]; then
+    echo "=== RESUME ${name} from $(basename "${run_dir}") using $(basename "${resume_ckpt}") (${completed_epochs}/${EPOCHS} epochs logged) ==="
     python3 examples/visdrone_sfr/train_sfr_module_bench.py \
-      --resume "${last_ckpt}" \
+      --resume "${resume_ckpt}" \
+      --epochs "${EPOCHS}" \
       --imgsz "${IMGSZ}" \
-      --batch "${BATCH}" \
+      --batch "${run_batch}" \
       --patience "${PATIENCE}" \
+      --optimizer "${run_optimizer}" \
       --workers "${WORKERS}" \
       --device "${DEVICE}" \
-      "${TRAIN_EXTRA[@]}"
+      "${run_extra[@]}"
   else
     run_dir="${PROJECT}/${name}"
     done_marker="${run_dir}/${DONE_MARKER_NAME}"
@@ -209,15 +266,15 @@ run_train() {
       --weights "${weights}" \
       --data "${DATA}" \
       --imgsz "${IMGSZ}" \
-      --batch "${BATCH}" \
+      --batch "${run_batch}" \
       --epochs "${EPOCHS}" \
       --patience "${PATIENCE}" \
-      --optimizer "${OPTIMIZER}" \
+      --optimizer "${run_optimizer}" \
       --workers "${WORKERS}" \
       --device "${DEVICE}" \
       --project "${PROJECT}" \
       --name "${name}" \
-      "${TRAIN_EXTRA[@]}"
+      "${run_extra[@]}"
   fi
 
   mkdir -p "${run_dir}"

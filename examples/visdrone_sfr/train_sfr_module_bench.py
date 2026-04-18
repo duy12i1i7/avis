@@ -50,11 +50,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--close-mosaic", type=int, default=20)
     parser.add_argument("--multi-scale", type=float, default=0.0)
     parser.add_argument("--mixup", type=float, default=0.0)
+    parser.add_argument("--lr0", type=float, default=None)
     parser.add_argument("--cache", action="store_true")
     parser.add_argument("--resume", default=None)
+    parser.add_argument("--amp", dest="amp", action="store_true")
+    parser.add_argument("--no-amp", dest="amp", action="store_false")
     parser.add_argument("--cos-lr", dest="cos_lr", action="store_true")
     parser.add_argument("--no-cos-lr", dest="cos_lr", action="store_false")
-    parser.set_defaults(cos_lr=True)
+    parser.set_defaults(cos_lr=True, amp=True)
     return parser.parse_args()
 
 
@@ -80,7 +83,7 @@ def main() -> None:
         resume_path = Path(args.resume).resolve()
         resume_run_dir = resume_path.parents[1]
         model = YOLO(args.resume)
-        model.train(
+        train_kwargs = dict(
             trainer=VisDroneAttackTrainer,
             resume=True,
             data=args.data,
@@ -95,11 +98,15 @@ def main() -> None:
             optimizer=args.optimizer,
             patience=args.patience,
             seed=args.seed,
+            amp=args.amp,
             cos_lr=args.cos_lr,
             close_mosaic=args.close_mosaic,
             multi_scale=args.multi_scale,
             mixup=args.mixup,
         )
+        if args.lr0 is not None:
+            train_kwargs["lr0"] = args.lr0
+        model.train(**train_kwargs)
         return
 
     model = YOLO(args.model)
@@ -111,7 +118,7 @@ def main() -> None:
     else:
         pretrained = args.weights
 
-    model.train(
+    train_kwargs = dict(
         trainer=VisDroneAttackTrainer,
         data=args.data,
         epochs=args.epochs,
@@ -125,6 +132,7 @@ def main() -> None:
         pretrained=pretrained,
         seed=args.seed,
         optimizer=args.optimizer,
+        amp=args.amp,
         patience=args.patience,
         cos_lr=args.cos_lr,
         close_mosaic=args.close_mosaic,
@@ -134,6 +142,9 @@ def main() -> None:
         copy_paste=0.0,
         save_json=False,
     )
+    if args.lr0 is not None:
+        train_kwargs["lr0"] = args.lr0
+    model.train(**train_kwargs)
 
 
 if __name__ == "__main__":
