@@ -317,9 +317,9 @@ run_eval() {
   fi
 
   if [[ "${name}" == yolov10* ]]; then
-    eval_batch="1"
-    eval_workers="0"
-    eval_device="${YOLOV10_EVAL_DEVICE:-cpu}"
+    eval_batch="${YOLOV10_EVAL_BATCH:-1}"
+    eval_workers="${YOLOV10_EVAL_WORKERS:-0}"
+    eval_device="${YOLOV10_EVAL_DEVICE:-${DEVICE}}"
     eval_extra+=(--no-plots)
     echo "=== INFO ${name}: using safe eval profile (device=${eval_device}, batch=${eval_batch}, workers=${eval_workers}) ==="
   fi
