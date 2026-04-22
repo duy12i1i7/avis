@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Full SFR experiment matrix for VisDrone:
 # - YOLO26n baseline + host-module ablations
-# - YOLO11n/YOLOv8n/YOLOv10n/YOLO12n baseline + SFRC2f transfer
+# - YOLO11n/YOLOv8n/YOLOv10n/YOLO12n baseline + symmetric SFR host variants
 #
 # Examples:
 # bash examples/visdrone_sfr/run_sfr_full_matrix.sh
@@ -69,12 +69,20 @@ RUNS=(
   "yolo26n_sfrc3k2_${DATASET_TAG}|ultralytics/cfg/models/26/yolo26n-sfrc3k2-visdrone.yaml|auto"
   "yolo11n_base_${DATASET_TAG}|ultralytics/cfg/models/11/yolo11.yaml|yolo11n.pt"
   "yolo11n_sfrc2f_${DATASET_TAG}|ultralytics/cfg/models/11/yolo11n-sfrc2f-visdrone.yaml|auto"
+  "yolo11n_sfrc3k_${DATASET_TAG}|ultralytics/cfg/models/11/yolo11n-sfrc3k-visdrone.yaml|auto"
+  "yolo11n_sfrc3k2_${DATASET_TAG}|ultralytics/cfg/models/11/yolo11n-sfrc3k2-visdrone.yaml|auto"
   "yolov8n_base_${DATASET_TAG}|ultralytics/cfg/models/v8/yolov8.yaml|yolov8n.pt"
   "yolov8n_sfrc2f_${DATASET_TAG}|ultralytics/cfg/models/v8/yolov8n-sfrc2f-visdrone.yaml|auto"
+  "yolov8n_sfrc3k_${DATASET_TAG}|ultralytics/cfg/models/v8/yolov8n-sfrc3k-visdrone.yaml|auto"
+  "yolov8n_sfrc3k2_${DATASET_TAG}|ultralytics/cfg/models/v8/yolov8n-sfrc3k2-visdrone.yaml|auto"
   "yolov10n_base_${DATASET_TAG}|ultralytics/cfg/models/v10/yolov10n.yaml|yolov10n.pt"
   "yolov10n_sfrc2f_${DATASET_TAG}|ultralytics/cfg/models/v10/yolov10n-sfrc2f-visdrone.yaml|auto"
+  "yolov10n_sfrc3k_${DATASET_TAG}|ultralytics/cfg/models/v10/yolov10n-sfrc3k-visdrone.yaml|auto"
+  "yolov10n_sfrc3k2_${DATASET_TAG}|ultralytics/cfg/models/v10/yolov10n-sfrc3k2-visdrone.yaml|auto"
   "yolo12n_base_${DATASET_TAG}|ultralytics/cfg/models/12/yolo12.yaml|yolo12n.pt"
   "yolo12n_sfrc2f_${DATASET_TAG}|ultralytics/cfg/models/12/yolo12n-sfrc2f-visdrone.yaml|auto"
+  "yolo12n_sfrc3k_${DATASET_TAG}|ultralytics/cfg/models/12/yolo12n-sfrc3k-visdrone.yaml|auto"
+  "yolo12n_sfrc3k2_${DATASET_TAG}|ultralytics/cfg/models/12/yolo12n-sfrc3k2-visdrone.yaml|auto"
 )
 
 resolve_run_dir() {
