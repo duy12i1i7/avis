@@ -305,6 +305,7 @@ run_eval() {
   local eval_batch="${BATCH}"
   local eval_device="${DEVICE}"
   local eval_workers="${WORKERS}"
+  local eval_plots="default"
   local -a eval_extra=()
 
   resolved="$(resolve_run_dir "${PROJECT}" "${name}")"
@@ -320,8 +321,13 @@ run_eval() {
     eval_batch="${YOLOV10_EVAL_BATCH:-1}"
     eval_workers="${YOLOV10_EVAL_WORKERS:-0}"
     eval_device="${YOLOV10_EVAL_DEVICE:-${DEVICE}}"
-    eval_extra+=(--no-plots)
-    echo "=== INFO ${name}: using safe eval profile (device=${eval_device}, batch=${eval_batch}, workers=${eval_workers}) ==="
+    if [[ "${YOLOV10_EVAL_PLOTS:-0}" == "1" ]]; then
+      eval_plots="on"
+    else
+      eval_plots="off"
+      eval_extra+=(--no-plots)
+    fi
+    echo "=== INFO ${name}: using safe eval profile (device=${eval_device}, batch=${eval_batch}, workers=${eval_workers}, plots=${eval_plots}) ==="
   fi
 
   echo
