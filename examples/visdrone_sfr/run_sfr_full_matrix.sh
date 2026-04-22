@@ -305,9 +305,6 @@ run_eval() {
   local eval_batch="${BATCH}"
   local eval_device="${DEVICE}"
   local eval_workers="${WORKERS}"
-  local eval_plots="default"
-  local safe_yolov10_eval="${SFR_SAFE_YOLOV10_EVAL:-0}"
-  local -a eval_extra=()
 
   resolved="$(resolve_run_dir "${PROJECT}" "${name}")"
   IFS="|" read -r run_dir completed_epochs has_last has_best is_done <<<"${resolved}"
@@ -316,21 +313,6 @@ run_eval() {
   if [[ ! -f "${ckpt}" ]]; then
     echo "Skipping ${name}: missing checkpoint ${ckpt}" >&2
     return 0
-  fi
-
-  if [[ "${name}" == yolov10* && "${safe_yolov10_eval}" == "1" ]]; then
-    eval_batch="${YOLOV10_EVAL_BATCH:-1}"
-    eval_workers="${YOLOV10_EVAL_WORKERS:-0}"
-    eval_device="${YOLOV10_EVAL_DEVICE:-${DEVICE}}"
-    if [[ "${YOLOV10_EVAL_PLOTS:-0}" == "1" ]]; then
-      eval_plots="on"
-    else
-      eval_plots="off"
-      eval_extra+=(--no-plots)
-    fi
-    echo "=== INFO ${name}: using safe eval profile (device=${eval_device}, batch=${eval_batch}, workers=${eval_workers}, plots=${eval_plots}) ==="
-  elif [[ "${name}" == yolov10* ]]; then
-    echo "=== INFO ${name}: using default shared eval profile (device=${eval_device}, batch=${eval_batch}, workers=${eval_workers}, plots=default) ==="
   fi
 
   echo
@@ -345,8 +327,7 @@ run_eval() {
     --project "${PROJECT}" \
     --name "${val_name}" \
     --exist-ok \
-    --save-json \
-    "${eval_extra[@]}"
+    --save-json
 
   if [[ "$(should_run_tiny_eval "${DATA}" "${TINY_EVAL_MODE}")" == "1" ]]; then
     if [[ -s "${json_path}" ]]; then
