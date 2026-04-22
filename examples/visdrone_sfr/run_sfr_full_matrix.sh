@@ -302,6 +302,10 @@ run_eval() {
   local val_dir="${PROJECT}/${val_name}"
   local json_path="${val_dir}/predictions.json"
   local tiny_path="${val_dir}/tiny_human_metrics.json"
+  local eval_batch="${BATCH}"
+  local eval_device="${DEVICE}"
+  local eval_workers="${WORKERS}"
+  local -a eval_extra=()
 
   resolved="$(resolve_run_dir "${PROJECT}" "${name}")"
   IFS="|" read -r run_dir completed_epochs has_last has_best is_done <<<"${resolved}"
@@ -312,18 +316,28 @@ run_eval() {
     return 0
   fi
 
+  if [[ "${name}" == yolov10* ]]; then
+    eval_batch="1"
+    eval_workers="0"
+    eval_device="${YOLOV10_EVAL_DEVICE:-cpu}"
+    eval_extra+=(--no-plots)
+    echo "=== INFO ${name}: using safe eval profile (device=${eval_device}, batch=${eval_batch}, workers=${eval_workers}) ==="
+  fi
+
   echo
   echo "=== EVAL ${name} from $(basename "${run_dir}") ==="
   python3 examples/visdrone_sfr/val_psr_yolo26.py \
     --model "${ckpt}" \
     --data "${DATA}" \
     --imgsz "${IMGSZ}" \
-    --batch "${BATCH}" \
-    --device "${DEVICE}" \
+    --batch "${eval_batch}" \
+    --device "${eval_device}" \
+    --workers "${eval_workers}" \
     --project "${PROJECT}" \
     --name "${val_name}" \
     --exist-ok \
-    --save-json
+    --save-json \
+    "${eval_extra[@]}"
 
   if [[ "$(should_run_tiny_eval "${DATA}" "${TINY_EVAL_MODE}")" == "1" ]]; then
     if [[ -s "${json_path}" ]]; then
