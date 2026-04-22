@@ -306,7 +306,7 @@ run_eval() {
   local eval_device="${DEVICE}"
   local eval_workers="${WORKERS}"
   local eval_plots="default"
-  local strict_fair_eval="${SFR_STRICT_EVAL:-0}"
+  local safe_yolov10_eval="${SFR_SAFE_YOLOV10_EVAL:-0}"
   local -a eval_extra=()
 
   resolved="$(resolve_run_dir "${PROJECT}" "${name}")"
@@ -318,7 +318,7 @@ run_eval() {
     return 0
   fi
 
-  if [[ "${name}" == yolov10* && "${strict_fair_eval}" != "1" ]]; then
+  if [[ "${name}" == yolov10* && "${safe_yolov10_eval}" == "1" ]]; then
     eval_batch="${YOLOV10_EVAL_BATCH:-1}"
     eval_workers="${YOLOV10_EVAL_WORKERS:-0}"
     eval_device="${YOLOV10_EVAL_DEVICE:-${DEVICE}}"
@@ -330,7 +330,7 @@ run_eval() {
     fi
     echo "=== INFO ${name}: using safe eval profile (device=${eval_device}, batch=${eval_batch}, workers=${eval_workers}, plots=${eval_plots}) ==="
   elif [[ "${name}" == yolov10* ]]; then
-    echo "=== INFO ${name}: using strict fair eval profile (device=${eval_device}, batch=${eval_batch}, workers=${eval_workers}, plots=default) ==="
+    echo "=== INFO ${name}: using default shared eval profile (device=${eval_device}, batch=${eval_batch}, workers=${eval_workers}, plots=default) ==="
   fi
 
   echo
