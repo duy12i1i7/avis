@@ -146,7 +146,10 @@ class BaseTrainer:
                 # Serialize Albumentations transforms as their repr strings for checkpoint compatibility
                 args_dict["augmentations"] = [repr(t) for t in args_dict["augmentations"]]
             YAML.save(self.save_dir / "args.yaml", args_dict)  # save run args
-        self.last, self.best = self.wdir / "last.pt", self.wdir / "best.pt"  # checkpoint paths
+        self.last = self.wdir / "last.pt"
+        self.best = self.wdir / "best.pt"
+        self.last_finite = self.wdir / "last_finite.pt"
+        self.last_nan = self.wdir / "last.nan.pt"
         self.save_period = self.args.save_period
 
         self.batch_size = self.args.batch
@@ -631,6 +634,12 @@ class BaseTrainer:
         """Save model training checkpoints with additional metadata."""
         import io
 
+        ema_model = deepcopy(unwrap_model(self.ema.ema)).half()
+        ema_state = ema_model.float().state_dict()
+        finite_ckpt = self._checkpoint_state_is_finite(ema_state)
+        if not finite_ckpt:
+            LOGGER.warning(f"Skipping overwrite of {self.last.name}: NaN/Inf EMA weights detected")
+
         # Serialize ckpt to a byte buffer once (faster than repeated torch.save() calls)
         buffer = io.BytesIO()
         torch.save(
@@ -638,7 +647,7 @@ class BaseTrainer:
                 "epoch": self.epoch,
                 "best_fitness": self.best_fitness,
                 "model": None,  # resume and final checkpoints derive from EMA
-                "ema": deepcopy(unwrap_model(self.ema.ema)).half(),
+                "ema": ema_model,
                 "updates": self.ema.updates,
                 "optimizer": convert_optimizer_state_dict_to_fp16(deepcopy(self.optimizer.state_dict())),
                 "scaler": self.scaler.state_dict(),
@@ -662,10 +671,14 @@ class BaseTrainer:
 
         # Save checkpoints
         self.wdir.mkdir(parents=True, exist_ok=True)  # ensure weights directory exists
-        self.last.write_bytes(serialized_ckpt)  # save last.pt
-        if self.best_fitness == self.fitness:
-            self.best.write_bytes(serialized_ckpt)  # save best.pt
-        if (self.save_period > 0) and (self.epoch % self.save_period == 0):
+        if finite_ckpt:
+            self.last.write_bytes(serialized_ckpt)  # save last.pt
+            self.last_finite.write_bytes(serialized_ckpt)  # save a known-good recovery checkpoint
+            if self.best_fitness == self.fitness:
+                self.best.write_bytes(serialized_ckpt)  # save best.pt
+        else:
+            self.last_nan.write_bytes(serialized_ckpt)
+        if finite_ckpt and (self.save_period > 0) and (self.epoch % self.save_period == 0):
             (self.wdir / f"epoch{self.epoch}.pt").write_bytes(serialized_ckpt)  # save epoch, i.e. 'epoch3.pt'
 
     def get_dataset(self):
@@ -910,7 +923,7 @@ class BaseTrainer:
     def _load_finite_recovery_checkpoint(self):
         """Load the first usable recovery checkpoint, preferring last.pt and falling back to best.pt."""
         seen = set()
-        for candidate in (self.last, self.best):
+        for candidate in (self.last_finite, self.last, self.best):
             candidate = Path(candidate)
             key = str(candidate.resolve()) if candidate.exists() else str(candidate)
             if key in seen or not candidate.exists():

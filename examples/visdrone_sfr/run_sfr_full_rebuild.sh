@@ -193,6 +193,7 @@ run_train() {
   local has_best
   local is_done
   local last_ckpt
+  local last_finite_ckpt
   local best_ckpt
   local done_marker
   local resume_ckpt=""
@@ -213,6 +214,7 @@ run_train() {
   resolved="$(resolve_run_dir "${PROJECT}" "${RUN_NAME}")"
   IFS="|" read -r run_dir completed_epochs has_last has_best is_done <<<"${resolved}"
   last_ckpt="${run_dir}/weights/last.pt"
+  last_finite_ckpt="${run_dir}/weights/last_finite.pt"
   best_ckpt="${run_dir}/weights/best.pt"
   done_marker="${run_dir}/${DONE_MARKER_NAME}"
 
@@ -231,7 +233,9 @@ run_train() {
   fi
 
   echo
-  if [[ "${has_last}" == "1" ]]; then
+  if [[ -f "${last_finite_ckpt}" && "$(checkpoint_is_finite "${last_finite_ckpt}")" == "1" ]]; then
+    resume_ckpt="${last_finite_ckpt}"
+  elif [[ "${has_last}" == "1" ]]; then
     if [[ "$(checkpoint_is_finite "${last_ckpt}")" == "1" ]]; then
       resume_ckpt="${last_ckpt}"
     else
