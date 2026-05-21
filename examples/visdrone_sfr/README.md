@@ -41,6 +41,7 @@ This directory now contains four VisDrone-focused paths:
 - `run_sfr_multidataset.sh`: canonical in-repo one-shot script that creates a venv, prepares TinyPerson if needed, and launches the two-dataset suite
 - `run_sfr_full.sh`: canonical in-repo one-shot script for the rebuilt `SFR full` experiment
 - `run_sfr_full_suite.sh`: canonical in-repo one-shot script for the rebuilt `SFR full` family suite across both datasets
+- `summarize_sfr_full_results.sh`: summarize rebuilt `SFR full` runs into a Markdown table and optional CSV
 - `eval_all.sh`: eval-only wrapper for the VisDrone + TinyPerson suite
 - `eval_sfr_full.sh`: eval-only wrapper for the rebuilt `SFR full` experiment
 - `eval_sfr_full_suite.sh`: eval-only wrapper for the rebuilt `SFR full` family suite
@@ -99,6 +100,16 @@ bash run_sfr_full_suite.sh \
   --epochs 300 \
   --batch 8 \
   --imgsz 960
+```
+
+To summarize rebuilt `SFR full` runs:
+
+```bash
+cd /Users/udy/avis/ultralytics
+bash summarize_sfr_full_results.sh \
+  --project-root runs/sfr_full \
+  --output-csv runs/sfr_full/sfrfull_summary.csv \
+  --output-md runs/sfr_full/sfrfull_summary.md
 ```
 
 ## Validation and tiny-human AP
