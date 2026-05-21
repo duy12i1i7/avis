@@ -32,16 +32,21 @@ This directory now contains four VisDrone-focused paths:
 - `examples/visdrone_sfr/train_sfr_module_bench.py`: training entrypoint for host-module transfer studies
 - `examples/visdrone_sfr/run_sfr_full_matrix.sh`: one-shot launcher for the full SFR train/eval matrix
 - `examples/visdrone_sfr/run_sfr_full_rebuild.sh`: focused runner for the rebuilt `YOLO26n + VisDrone` SFR full experiment
+- `examples/visdrone_sfr/run_sfrfull_family_suite.sh`: run rebuilt `SFR full` across `YOLO26/11/12/v8/v10` for one dataset
+- `examples/visdrone_sfr/run_sfrfull_dataset_suite.sh`: run rebuilt `SFR full` across `VisDrone + TinyPerson`
 - `examples/visdrone_sfr/run_sfr_dataset_suite.sh`: one-shot launcher for running the full matrix across VisDrone and TinyPerson
 - `examples/visdrone_sfr/prepare_coco_detection_dataset.py`: convert COCO-style datasets such as TinyPerson into YOLO labels plus a dataset YAML
 - `ultralytics/cfg/datasets/TinyPerson.yaml`: TinyPerson dataset spec that auto-downloads the official release and converts it to YOLO
 - `ultralytics/data/sfr_external.py`: helper utilities for external dataset download/extract/convert flows
 - `run_sfr_multidataset.sh`: canonical in-repo one-shot script that creates a venv, prepares TinyPerson if needed, and launches the two-dataset suite
 - `run_sfr_full.sh`: canonical in-repo one-shot script for the rebuilt `SFR full` experiment
+- `run_sfr_full_suite.sh`: canonical in-repo one-shot script for the rebuilt `SFR full` family suite across both datasets
 - `eval_all.sh`: eval-only wrapper for the VisDrone + TinyPerson suite
 - `eval_sfr_full.sh`: eval-only wrapper for the rebuilt `SFR full` experiment
+- `eval_sfr_full_suite.sh`: eval-only wrapper for the rebuilt `SFR full` family suite
 - `bootstrap_sfr_multidataset.sh`: clone/pull wrapper that forwards to `run_sfr_multidataset.sh`
 - `bootstrap_sfr_full.sh`: clone/pull wrapper that forwards to `run_sfr_full.sh`
+- `bootstrap_sfr_full_suite.sh`: clone/pull wrapper that forwards to `run_sfr_full_suite.sh`
 - `examples/visdrone_sfr/setup_and_run_multidataset.sh`: compatibility shim that forwards to `run_sfr_multidataset.sh`
 - `examples/visdrone_sfr/val_psr_yolo26.py`: validation entrypoint
 - `examples/visdrone_sfr/tiny_human_eval.py`: computes `tiny-human AP` for `pedestrian` and `people`
@@ -77,6 +82,18 @@ For the rebuilt `SFR full` path:
 ```bash
 cd /Users/udy/avis/ultralytics
 bash run_sfr_full.sh \
+  --stage train \
+  --device 0 \
+  --epochs 300 \
+  --batch 8 \
+  --imgsz 960
+```
+
+For the rebuilt `SFR full` family suite across `VisDrone + TinyPerson`:
+
+```bash
+cd /Users/udy/avis/ultralytics
+bash run_sfr_full_suite.sh \
   --stage train \
   --device 0 \
   --epochs 300 \
