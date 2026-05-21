@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${ROOT}/.venv"
+source "${ROOT}/examples/visdrone_sfr/kaggle_resume_utils.sh"
 
 usage() {
   cat <<'EOF'
@@ -25,6 +26,9 @@ fi
 
 cd "${ROOT}"
 
+kaggle_restore_tree "${ROOT}" "${ROOT}/runs/sfr_full" "sfr_full"
+kaggle_restore_tree "${ROOT}" "${ROOT}/runs/sfr_suite" "sfr_suite"
+
 python3 -m venv "${VENV_DIR}"
 source "${VENV_DIR}/bin/activate"
 
@@ -44,4 +48,5 @@ PY
 
 nvidia-smi -L || true
 
-exec bash "${ROOT}/examples/visdrone_sfr/run_sfrfull_dataset_suite.sh" "$@"
+bash "${ROOT}/examples/visdrone_sfr/run_sfrfull_dataset_suite.sh" "$@"
+kaggle_snapshot_tree "${ROOT}" "runs/sfr_full" "sfr_full"

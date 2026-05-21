@@ -54,6 +54,10 @@ This directory now contains four VisDrone-focused paths:
 - `examples/visdrone_sfr/tiny_human_eval.py`: computes `tiny-human AP` for `pedestrian` and `people`
 - `examples/visdrone_sfr/run_kaggle_dual_t4.sh`: launcher for Kaggle 2xT4
 - `examples/visdrone_sfr/KAGGLE.md`: Kaggle notebook instructions
+- `examples/visdrone_sfr/kaggle/run_sfrfull_suite_kaggle.py`: Kaggle kernel entrypoint for automated `sfrfull` suite runs
+- `kaggle_push_sfr_full_suite.sh`: local helper that generates Kaggle kernel metadata and pushes a `sfrfull` suite job
+- `kaggle_watch_kernel.sh`: poll a Kaggle kernel until it completes or fails
+- `kaggle_pull_kernel_output.sh`: download Kaggle kernel outputs back to local disk
 - `docs/visdrone_sfr_experiment_protocol.md`: full SFR host-module experiment protocol
 
 ## Recommended training

@@ -131,3 +131,101 @@ Kaggle only preserves files under `/kaggle/working`. Your weights and logs are a
 - validation json: `/kaggle/working/runs/visdrone/.../predictions.json`
 
 Before ending the session, use `Save Version` in Kaggle so the artifacts persist.
+
+## 8. CLI automation for `sfrfull` suite
+
+If you want Kaggle to run the rebuilt `sfrfull` suite automatically from your local machine, use the Kaggle CLI flow instead of clicking through a notebook manually.
+
+Install and authenticate the Kaggle CLI locally:
+
+```bash
+python3 -m pip install kaggle
+mkdir -p ~/.kaggle
+# place kaggle.json here, then:
+chmod 600 ~/.kaggle/kaggle.json
+```
+
+Push a `sfrfull` suite run:
+
+```bash
+cd ~/avis
+bash kaggle_push_sfr_full_suite.sh \
+  --kernel-id <your-kaggle-user>/sfrfull-suite \
+  --device 0,1 \
+  --epochs 300 \
+  --batch 8 \
+  --imgsz 960
+```
+
+Watch the run:
+
+```bash
+bash kaggle_watch_kernel.sh --kernel-id <your-kaggle-user>/sfrfull-suite
+```
+
+Pull outputs back:
+
+```bash
+bash kaggle_pull_kernel_output.sh --kernel-id <your-kaggle-user>/sfrfull-suite
+```
+
+If you also want `compare_sfr_full_vs_baseline.sh` to run inside Kaggle, attach a Kaggle dataset that contains your baseline `runs/sfr_suite` tree and pass it through the CLI wrapper:
+
+```bash
+bash kaggle_push_sfr_full_suite.sh \
+  --kernel-id <your-kaggle-user>/sfrfull-suite \
+  --dataset-source <your-kaggle-user>/sfr-suite-baselines \
+  --device 0,1 \
+  --epochs 300 \
+  --batch 8 \
+  --imgsz 960
+```
+
+The wrapper will then look for the baseline tree at:
+
+```bash
+/kaggle/input/sfr-suite-baselines/runs/sfr_suite
+```
+
+Important limitation:
+
+- Kaggle's documented kernel metadata only exposes `enable_gpu` and dataset attachments.
+- The documented CLI push flow exposes `--accelerator`, for example `NvidiaTeslaT4`.
+- There is no documented kernel metadata field for GPU count in the public CLI docs, so `--device 0,1` in the job script is best-effort and still depends on Kaggle runtime support for dual-T4 on that kernel.
+
+## 9. Resume behavior for notebook cells
+
+The rebuilt runner now has Kaggle-aware restore and snapshot hooks:
+
+- before training, [run_sfr_full_suite.sh](/Users/udy/avis/ultralytics/run_sfr_full_suite.sh) will try to restore `runs/sfr_full` and `runs/sfr_suite` from any attached Kaggle input dataset that contains those trees or a `*_resume.tgz` archive
+- after each completed `sfrfull` model run, [run_sfr_full_rebuild.sh](/Users/udy/avis/ultralytics/examples/visdrone_sfr/run_sfr_full_rebuild.sh) writes a fresh `/kaggle/working/sfr_full_resume.tgz`
+
+Important limitation:
+
+- if the Kaggle session dies hard and you never saved or re-attached the previous outputs as an input dataset, Kaggle gives the new session a fresh filesystem, so no script can recover checkpoints that no longer exist
+- if you attach the previous output dataset, rerunning the same training command will restore and continue from the latest saved `last.pt` or `best.pt`
+
+Use `%cd`, not `!cd`, in notebook cells:
+
+```bash
+%cd /kaggle/working/avis
+!git pull
+
+!bash run_sfr_full_suite.sh \
+  --stage train \
+  --device 0,1 \
+  --epochs 300 \
+  --batch 8 \
+  --imgsz 960
+
+!bash summarize_sfr_full_results.sh \
+  --project-root runs/sfr_full \
+  --output-csv runs/sfr_full/sfrfull_summary.csv \
+  --output-md runs/sfr_full/sfrfull_summary.md
+
+!bash compare_sfr_full_vs_baseline.sh \
+  --baseline-root runs/sfr_suite \
+  --sfrfull-root runs/sfr_full \
+  --output-csv runs/sfr_full/sfrfull_vs_base.csv \
+  --output-md runs/sfr_full/sfrfull_vs_base.md
+```

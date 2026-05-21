@@ -118,6 +118,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.kaggle/
 .idea
 env/
 venv/

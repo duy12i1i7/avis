@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${ROOT}"
+source "${ROOT}/examples/visdrone_sfr/kaggle_resume_utils.sh"
 
 STAGE="train"
 MODEL="ultralytics/cfg/models/26/yolo26n-sfrfull-visdrone.yaml"
@@ -285,6 +286,7 @@ run_train() {
 
   mkdir -p "${run_dir}"
   touch "${done_marker}"
+  kaggle_snapshot_tree "${ROOT}" "runs/sfr_full" "sfr_full"
 }
 
 run_eval() {
@@ -343,6 +345,8 @@ run_eval() {
   else
     echo "Skipping tiny-human eval for ${RUN_NAME}: dataset has no pedestrian/people/person classes."
   fi
+
+  kaggle_snapshot_tree "${ROOT}" "runs/sfr_full" "sfr_full"
 }
 
 if [[ "${STAGE}" == "train" || "${STAGE}" == "all" ]]; then
