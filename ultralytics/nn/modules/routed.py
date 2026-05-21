@@ -443,6 +443,7 @@ class SparseSubpixelExpertFull(nn.Module):
         """Apply dynamic sparse refinement and return a residual tensor."""
         b, c, h, w = x.shape
         p = self._effective_patch_size(h, w)
+        track_routes = self.training
         self.last_input_hw = (h, w)
         self.last_patch_size = p
         self.last_route_logits = None
@@ -473,9 +474,10 @@ class SparseSubpixelExpertFull(nn.Module):
         scores = scores_map.flatten(1)
         active = scores_map > self.route_thresh
 
-        self.last_route_logits = logits_map
-        self.last_route_scores = scores_map
-        self.last_route_mask = torch.zeros_like(scores_map, dtype=torch.bool)
+        if track_routes:
+            self.last_route_logits = logits_map
+            self.last_route_scores = scores_map
+            self.last_route_mask = torch.zeros_like(scores_map, dtype=torch.bool)
 
         patches = x_pad.unfold(2, p, p).unfold(3, p, p)
         patches = patches.permute(0, 2, 3, 1, 4, 5).contiguous().view(b, num_patches, c, p, p)
@@ -494,7 +496,8 @@ class SparseSubpixelExpertFull(nn.Module):
             refined = refined * scores[bi, idx].view(-1, 1, 1, 1)
 
             delta[bi, idx] = refined
-            self.last_route_mask[bi].view(-1)[idx] = True
+            if track_routes:
+                self.last_route_mask[bi].view(-1)[idx] = True
             total_routed += int(idx.numel())
 
         self.last_route_count = float(total_routed) / max(b, 1)
