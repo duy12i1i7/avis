@@ -5,6 +5,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${ROOT}/.venv"
 source "${ROOT}/examples/visdrone_sfr/kaggle_resume_utils.sh"
 
+unset PYTHONHOME PYTHONPATH PYTHONSTARTUP PYTHONUSERBASE PYTHONEXECUTABLE
+export PYTHONNOUSERSITE=1
+export PIP_DISABLE_PIP_VERSION_CHECK=1
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -28,6 +32,10 @@ cd "${ROOT}"
 
 kaggle_restore_tree "${ROOT}" "${ROOT}/runs/sfr_full" "sfr_full"
 kaggle_restore_tree "${ROOT}" "${ROOT}/runs/sfr_suite" "sfr_suite"
+
+if [[ -d "${VENV_DIR}" && ! -x "${VENV_DIR}/bin/python" ]]; then
+  rm -rf "${VENV_DIR}"
+fi
 
 python3 -m venv "${VENV_DIR}"
 source "${VENV_DIR}/bin/activate"
