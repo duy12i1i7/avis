@@ -33,16 +33,23 @@ cd "${ROOT}"
 kaggle_restore_tree "${ROOT}" "${ROOT}/runs/sfr_full" "sfr_full"
 kaggle_restore_tree "${ROOT}" "${ROOT}/runs/sfr_suite" "sfr_suite"
 
-if [[ -d "${VENV_DIR}" && ! -x "${VENV_DIR}/bin/python" ]]; then
-  rm -rf "${VENV_DIR}"
+if is_kaggle_runtime; then
+  echo "Kaggle runtime detected: using system Python instead of local venv."
+  python3 -m pip install -U pip "setuptools<82" wheel
+  python3 -m pip install -e .
+  python3 -m pip install pycocotools typeguard
+else
+  if [[ -d "${VENV_DIR}" && ! -x "${VENV_DIR}/bin/python" ]]; then
+    rm -rf "${VENV_DIR}"
+  fi
+
+  python3 -m venv "${VENV_DIR}"
+  source "${VENV_DIR}/bin/activate"
+
+  python -m pip install -U pip "setuptools<82" wheel
+  python -m pip install -e .
+  python -m pip install pycocotools typeguard
 fi
-
-python3 -m venv "${VENV_DIR}"
-source "${VENV_DIR}/bin/activate"
-
-python -m pip install -U pip "setuptools<82" wheel
-python -m pip install -e .
-python -m pip install pycocotools typeguard
 
 python - <<'PY'
 import torch
