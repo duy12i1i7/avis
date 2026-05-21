@@ -42,6 +42,7 @@ This directory now contains four VisDrone-focused paths:
 - `run_sfr_full.sh`: canonical in-repo one-shot script for the rebuilt `SFR full` experiment
 - `run_sfr_full_suite.sh`: canonical in-repo one-shot script for the rebuilt `SFR full` family suite across both datasets
 - `summarize_sfr_full_results.sh`: summarize rebuilt `SFR full` runs into a Markdown table and optional CSV
+- `compare_sfr_full_vs_baseline.sh`: compare rebuilt `SFR full` runs against baseline `base` runs and compute deltas
 - `eval_all.sh`: eval-only wrapper for the VisDrone + TinyPerson suite
 - `eval_sfr_full.sh`: eval-only wrapper for the rebuilt `SFR full` experiment
 - `eval_sfr_full_suite.sh`: eval-only wrapper for the rebuilt `SFR full` family suite
@@ -110,6 +111,17 @@ bash summarize_sfr_full_results.sh \
   --project-root runs/sfr_full \
   --output-csv runs/sfr_full/sfrfull_summary.csv \
   --output-md runs/sfr_full/sfrfull_summary.md
+```
+
+To compare rebuilt `SFR full` runs against baseline `base` runs:
+
+```bash
+cd /Users/udy/avis/ultralytics
+bash compare_sfr_full_vs_baseline.sh \
+  --baseline-root runs/sfr_suite \
+  --sfrfull-root runs/sfr_full \
+  --output-csv runs/sfr_full/sfrfull_vs_base.csv \
+  --output-md runs/sfr_full/sfrfull_vs_base.md
 ```
 
 ## Validation and tiny-human AP
