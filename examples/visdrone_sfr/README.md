@@ -7,6 +7,7 @@ This directory now contains four VisDrone-focused paths:
 - the current default `RSPB` recipe that injects selective P2 detail into P3 without a full P2 detection head
 - the new `SPD` recipe that adds a frozen dense teacher during training and keeps the lightweight student at inference
 - the new `SFR host-module bench` path that tests `SparseSubpixelExpert` under `C2f`, `C3k`, and `C3k2` hosts
+- the rebuilt `SFR full` path that keeps the routed host insertion pattern but upgrades routing to dynamic budget plus router supervision
 
 ## Files
 
@@ -21,6 +22,7 @@ This directory now contains four VisDrone-focused paths:
 - `ultralytics/cfg/models/26/yolo26n-sfrc2f-visdrone.yaml`: explicit `SFRC2f` host benchmark
 - `ultralytics/cfg/models/26/yolo26n-sfrc3k-visdrone.yaml`: explicit `SFRC3k` host benchmark
 - `ultralytics/cfg/models/26/yolo26n-sfrc3k2-visdrone.yaml`: explicit `SFRC3k2` host benchmark
+- `ultralytics/cfg/models/26/yolo26n-sfrfull-visdrone.yaml`: rebuilt `SFR full` variant with dynamic routing and router auxiliary loss
 - `ultralytics/cfg/models/11/yolo11n-sfrc2f-visdrone.yaml`: cross-YOLO `SFRC2f` transfer benchmark
 - `ultralytics/cfg/models/v8/yolov8n-sfrc2f-visdrone.yaml`: `YOLOv8n` transfer benchmark
 - `ultralytics/cfg/models/v10/yolov10n-sfrc2f-visdrone.yaml`: `YOLOv10n` transfer benchmark
@@ -29,13 +31,17 @@ This directory now contains four VisDrone-focused paths:
 - `examples/visdrone_sfr/train_psr_yolo26.py`: training entrypoint for the attack recipe
 - `examples/visdrone_sfr/train_sfr_module_bench.py`: training entrypoint for host-module transfer studies
 - `examples/visdrone_sfr/run_sfr_full_matrix.sh`: one-shot launcher for the full SFR train/eval matrix
+- `examples/visdrone_sfr/run_sfr_full_rebuild.sh`: focused runner for the rebuilt `YOLO26n + VisDrone` SFR full experiment
 - `examples/visdrone_sfr/run_sfr_dataset_suite.sh`: one-shot launcher for running the full matrix across VisDrone and TinyPerson
 - `examples/visdrone_sfr/prepare_coco_detection_dataset.py`: convert COCO-style datasets such as TinyPerson into YOLO labels plus a dataset YAML
 - `ultralytics/cfg/datasets/TinyPerson.yaml`: TinyPerson dataset spec that auto-downloads the official release and converts it to YOLO
 - `ultralytics/data/sfr_external.py`: helper utilities for external dataset download/extract/convert flows
 - `run_sfr_multidataset.sh`: canonical in-repo one-shot script that creates a venv, prepares TinyPerson if needed, and launches the two-dataset suite
+- `run_sfr_full.sh`: canonical in-repo one-shot script for the rebuilt `SFR full` experiment
 - `eval_all.sh`: eval-only wrapper for the VisDrone + TinyPerson suite
+- `eval_sfr_full.sh`: eval-only wrapper for the rebuilt `SFR full` experiment
 - `bootstrap_sfr_multidataset.sh`: clone/pull wrapper that forwards to `run_sfr_multidataset.sh`
+- `bootstrap_sfr_full.sh`: clone/pull wrapper that forwards to `run_sfr_full.sh`
 - `examples/visdrone_sfr/setup_and_run_multidataset.sh`: compatibility shim that forwards to `run_sfr_multidataset.sh`
 - `examples/visdrone_sfr/val_psr_yolo26.py`: validation entrypoint
 - `examples/visdrone_sfr/tiny_human_eval.py`: computes `tiny-human AP` for `pedestrian` and `people`
@@ -64,6 +70,18 @@ python3 examples/visdrone_sfr/train_psr_yolo26.py \
   --imgsz 960 \
   --batch 8 \
   --device 0,1
+```
+
+For the rebuilt `SFR full` path:
+
+```bash
+cd /Users/udy/avis/ultralytics
+bash run_sfr_full.sh \
+  --stage train \
+  --device 0 \
+  --epochs 300 \
+  --batch 8 \
+  --imgsz 960
 ```
 
 ## Validation and tiny-human AP
