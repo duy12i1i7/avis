@@ -76,7 +76,19 @@ from .conv import (
     RepConv,
     SpatialAttention,
 )
-from .routed import ScaleSelectiveFusion, SFRBottleneck, SFRKBlock, SFRC2f, SFRC3k, SFRC3k2, SparseSubpixelExpert
+from .routed import (
+    ScaleSelectiveFusion,
+    SFRBottleneck,
+    SFRKBlock,
+    SFRC2f,
+    SFRC2fFull,
+    SFRC3k,
+    SFRC3k2,
+    SFRC3k2Full,
+    SFRC3kFull,
+    SparseSubpixelExpert,
+    SparseSubpixelExpertFull,
+)
 from .head import (
     OBB,
     OBB26,
@@ -180,12 +192,16 @@ __all__ = (
     "SFRBottleneck",
     "SFRKBlock",
     "SFRC2f",
+    "SFRC2fFull",
     "SFRC3k",
     "SFRC3k2",
+    "SFRC3kFull",
+    "SFRC3k2Full",
     "Segment",
     "Segment26",
     "SpatialAttention",
     "SparseSubpixelExpert",
+    "SparseSubpixelExpertFull",
     "TorchVision",
     "TransformerBlock",
     "TransformerEncoderLayer",

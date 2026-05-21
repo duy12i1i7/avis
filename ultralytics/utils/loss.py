@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from ultralytics.nn.modules.routed import SparseSubpixelExpertFull
 from ultralytics.utils.metrics import OKS_SIGMA, RLE_WEIGHT
 from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh
 from ultralytics.utils.tal import RotatedTaskAlignedAssigner, TaskAlignedAssigner, dist2bbox, dist2rbox, make_anchors
@@ -1308,6 +1309,113 @@ class TinyObjectAwareE2ELoss(E2ELoss):
         self.o2o = self.total - self.o2m
         self.o2m_copy = self.o2m
         self.final_o2m = 0.1
+
+
+class RouterSupervisedE2ELoss(TinyObjectAwareE2ELoss):
+    """Tiny-object-aware E2E loss with auxiliary supervision for full SFR route maps."""
+
+    def __init__(self, model):
+        """Initialize router supervision settings for full SFR experiments."""
+        super().__init__(model)
+        cfg = getattr(model, "yaml", {}).get("router_aux", {}) or {}
+        tiny_cfg = getattr(model, "yaml", {}).get("tiny_obj", {}) or {}
+        self.router_enabled = bool(cfg.get("enabled", False))
+        self.router_gain = float(cfg.get("gain", 0.2))
+        self.router_pos_weight = float(cfg.get("pos_weight", 4.0))
+        self.router_neg_weight = float(cfg.get("neg_weight", 1.0))
+        self.router_dice_gain = float(cfg.get("dice_gain", 0.1))
+        self.router_density_gain = float(cfg.get("density_gain", 0.05))
+        self.router_cls_ids = [int(x) for x in tiny_cfg.get("cls_ids", [0, 1])]
+        self.router_area_thr = float(tiny_cfg.get("area", 32.0 * 32.0))
+        self.router_height_thr = float(tiny_cfg.get("height", 20.0))
+        self.router_modules = [m for m in model.modules() if isinstance(m, SparseSubpixelExpertFull)]
+
+    def _tiny_gt_mask(self, batch: dict[str, torch.Tensor]) -> torch.Tensor:
+        """Return a mask for tiny GT boxes configured for router supervision."""
+        cls = batch["cls"].view(-1)
+        boxes = batch["bboxes"].view(-1, 4)
+        img_h, img_w = batch["img"].shape[-2:]
+        area_thr = self.router_area_thr / max(float(img_h * img_w), 1.0)
+        height_thr = self.router_height_thr / max(float(img_h), 1.0)
+        cls_mask = torch.zeros_like(cls, dtype=torch.bool)
+        for cls_id in self.router_cls_ids:
+            cls_mask |= cls.eq(float(cls_id))
+        area = boxes[:, 2] * boxes[:, 3]
+        return cls_mask & (area <= area_thr) & (boxes[:, 3] <= height_thr) & area.gt(0)
+
+    def _route_targets(self, module: SparseSubpixelExpertFull, batch: dict[str, torch.Tensor]) -> torch.Tensor | None:
+        """Build a per-patch supervision map for one routed module."""
+        logits = module.last_route_logits
+        if logits is None:
+            return None
+
+        gh, gw = module.last_grid_shape
+        feat_h, feat_w = module.last_input_hw
+        p = module.last_patch_size
+        if gh <= 0 or gw <= 0 or feat_h <= 0 or feat_w <= 0 or p <= 0:
+            return None
+
+        target = logits.new_zeros(logits.shape)
+        tiny_mask = self._tiny_gt_mask(batch)
+        if not tiny_mask.any():
+            return target
+
+        batch_idx = batch["batch_idx"].view(-1)[tiny_mask].long()
+        boxes = batch["bboxes"].view(-1, 4)[tiny_mask]
+        x0 = (boxes[:, 0] - boxes[:, 2] * 0.5) * feat_w
+        y0 = (boxes[:, 1] - boxes[:, 3] * 0.5) * feat_h
+        x1 = (boxes[:, 0] + boxes[:, 2] * 0.5) * feat_w
+        y1 = (boxes[:, 1] + boxes[:, 3] * 0.5) * feat_h
+
+        for bi, bx0, by0, bx1, by1 in zip(batch_idx.tolist(), x0.tolist(), y0.tolist(), x1.tolist(), y1.tolist()):
+            px0 = min(max(int(math.floor(max(bx0, 0.0) / p)), 0), gw - 1)
+            py0 = min(max(int(math.floor(max(by0, 0.0) / p)), 0), gh - 1)
+            px1 = min(max(int(math.floor(max(bx1 - 1e-6, 0.0) / p)), 0), gw - 1)
+            py1 = min(max(int(math.floor(max(by1 - 1e-6, 0.0) / p)), 0), gh - 1)
+            target[bi, py0 : py1 + 1, px0 : px1 + 1] = 1.0
+        return target
+
+    def _router_aux_loss(self, batch: dict[str, torch.Tensor]) -> torch.Tensor:
+        """Compute auxiliary router supervision over all full SFR modules."""
+        if not self.router_enabled or not self.router_modules:
+            return batch["img"].new_zeros(())
+
+        total = batch["img"].new_zeros(())
+        counted = 0
+        for module in self.router_modules:
+            logits = module.last_route_logits
+            if logits is None:
+                continue
+
+            target = self._route_targets(module, batch)
+            if target is None:
+                continue
+
+            weights = torch.full_like(target, self.router_neg_weight)
+            weights = torch.where(target > 0.5, torch.full_like(target, self.router_pos_weight), weights)
+            bce = F.binary_cross_entropy_with_logits(logits, target, weight=weights, reduction="mean")
+
+            probs = logits.sigmoid()
+            inter = (probs * target).sum(dim=(1, 2))
+            denom = probs.sum(dim=(1, 2)) + target.sum(dim=(1, 2))
+            dice = 1.0 - ((2.0 * inter + 1.0) / (denom + 1.0))
+
+            target_density = target.mean(dim=(1, 2))
+            pred_density = probs.mean(dim=(1, 2))
+            density = F.smooth_l1_loss(pred_density, target_density, reduction="mean")
+
+            total = total + bce + self.router_dice_gain * dice.mean() + self.router_density_gain * density
+            counted += 1
+
+        if counted == 0:
+            return total
+        return total * (self.router_gain / counted)
+
+    def __call__(self, preds: Any, batch: dict[str, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
+        """Add router supervision to the base tiny-object-aware end-to-end detection loss."""
+        loss, loss_items = super().__call__(preds, batch)
+        router_loss = self._router_aux_loss(batch)
+        return loss + router_loss, torch.cat((loss_items, router_loss.detach().view(1)))
 
 
 class ShadowDistilledE2ELoss(TinyObjectAwareE2ELoss):

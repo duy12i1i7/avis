@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from copy import copy
 
 import numpy as np
 import torch
@@ -9,6 +10,7 @@ from torch.utils.data import Dataset
 
 from ultralytics.data import build_dataloader
 from ultralytics.models.yolo.detect.train import DetectionTrainer
+from ultralytics.models.yolo.detect.val import DetectionValidator
 from ultralytics.utils import LOGGER
 from ultralytics.utils.torch_utils import torch_distributed_zero_first, unwrap_model
 
@@ -51,6 +53,17 @@ class VisDroneAttackTrainer(DetectionTrainer):
     def _attack_cfg(self) -> dict:
         model = unwrap_model(self.model)
         return getattr(model, "yaml", {}).get("visdrone_attack", {}) or {}
+
+    def get_validator(self):
+        """Return a DetectionValidator and expose router aux loss when enabled."""
+        model = unwrap_model(self.model)
+        router_cfg = getattr(model, "yaml", {}).get("router_aux", {}) or {}
+        self.loss_names = ("box_loss", "cls_loss", "dfl_loss", "router_loss") if router_cfg.get(
+            "enabled", False
+        ) else ("box_loss", "cls_loss", "dfl_loss")
+        return DetectionValidator(
+            self.test_loader, save_dir=self.save_dir, args=copy(self.args), _callbacks=self.callbacks
+        )
 
     def _tiny_cls_ids(self) -> np.ndarray:
         return np.asarray(self._attack_cfg().get("tiny_cls_ids", [0, 1]), dtype=np.int64)

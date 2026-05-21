@@ -66,8 +66,11 @@ from ultralytics.nn.modules import (
     SCDown,
     ScaleSelectiveFusion,
     SFRC2f,
+    SFRC2fFull,
     SFRC3k,
     SFRC3k2,
+    SFRC3k2Full,
+    SFRC3kFull,
     Segment,
     Segment26,
     TorchVision,
@@ -82,6 +85,7 @@ from ultralytics.utils.checks import check_requirements, check_suffix, check_yam
 from ultralytics.utils.loss import (
     E2ELoss,
     PoseLoss26,
+    RouterSupervisedE2ELoss,
     ShadowDistilledE2ELoss,
     TinyObjectAwareE2ELoss,
     v8ClassificationLoss,
@@ -520,6 +524,9 @@ class DetectionModel(BaseModel):
         shadow_cfg = self.yaml.get("shadow_distill", {}) or {}
         if shadow_cfg.get("enabled", False) and getattr(self, "end2end", False):
             return ShadowDistilledE2ELoss(self)
+        router_cfg = self.yaml.get("router_aux", {}) or {}
+        if router_cfg.get("enabled", False) and getattr(self, "end2end", False):
+            return RouterSupervisedE2ELoss(self)
         tiny_cfg = self.yaml.get("tiny_obj", {}) or {}
         if tiny_cfg.get("enabled", False) and getattr(self, "end2end", False):
             return TinyObjectAwareE2ELoss(self)
@@ -1620,8 +1627,11 @@ def parse_model(d, ch, verbose=True):
             SCDown,
             ScaleSelectiveFusion,
             SFRC2f,
+            SFRC2fFull,
             SFRC3k,
             SFRC3k2,
+            SFRC3k2Full,
+            SFRC3kFull,
             C2fCIB,
             A2C2f,
         }
@@ -1644,8 +1654,11 @@ def parse_model(d, ch, verbose=True):
             C2PSA,
             A2C2f,
             SFRC2f,
+            SFRC2fFull,
             SFRC3k,
             SFRC3k2,
+            SFRC3k2Full,
+            SFRC3kFull,
         }
     )
     for i, (f, n, m, args) in enumerate(d["backbone"] + d["head"]):  # from, number, module, args
