@@ -141,6 +141,7 @@ from pathlib import Path
 import sys
 
 import torch
+from ultralytics.utils.patches import torch_load
 
 path = Path(sys.argv[1])
 if not path.exists():
@@ -148,7 +149,7 @@ if not path.exists():
     raise SystemExit
 
 try:
-    ckpt = torch.load(path, map_location="cpu")
+    ckpt = torch_load(path, map_location="cpu")
     model = ckpt.get("ema") or ckpt.get("model")
     if model is None or not hasattr(model, "state_dict"):
         print(0)
