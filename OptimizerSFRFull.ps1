@@ -9,7 +9,11 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location $RepoDir
 
-& git pull
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    & git pull
+} else {
+    Write-Warning "git not found on PATH; skipping git pull."
+}
 
 & (Join-Path $RepoDir "run_sfr_full_suite.ps1") `
     --stage train `
